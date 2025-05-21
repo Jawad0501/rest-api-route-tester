@@ -1,0 +1,65 @@
+#wprrt-app {
+    font-family: Arial, sans-serif;
+    margin-top: 20px;
+}
+.wprrt-container {
+    display: flex;
+    gap: 20px;
+}
+.wprrt-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.wprrt-form label {
+    display: flex;
+    flex-direction: column;
+    font-weight: bold;
+}
+.wprrt-form select,
+.wprrt-form textarea,
+.wprrt-form input {
+    padding: 8px;
+    font-size: 14px;
+    margin-top: 4px;
+}
+.wprrt-form button {
+    padding: 10px;
+    background-color: #2271b1;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 4px;
+}
+.wprrt-form button:hover {
+    background-color: #135e96;
+}
+.wprrt-response-block {
+    flex: 1;
+    background: #f8f8f8;
+    padding: 15px;
+    border: 1px solid #ddd;
+}
+.wprrt-response-block pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: monospace;
+    font-size: 14px;
+}
+.wprrt-role-selector {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+}
+.wprrt-controls {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
