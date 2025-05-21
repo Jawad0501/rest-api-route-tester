@@ -1,4 +1,4 @@
-# WP REST Route Tester
+# Rest API Route Tester
 Version: 1.0.0
 Author: Nowshad Jawad
 Requires at least: 4.5
