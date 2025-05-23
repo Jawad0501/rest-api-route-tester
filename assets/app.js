@@ -1,5 +1,66 @@
 jQuery(document).ready(function($) {
     const app = $('#wprrt-app');
+    let activeTabId = null;
+    let tabCounter = 0;
+    let pluginRoutes = {}; // Store plugin routes globally
+    let formattedRoutes = {}; // Store formatted routes globally
+
+    // State management functions
+    function saveState() {
+        const state = {
+            tabs: [],
+            activeTabId: activeTabId
+        };
+
+        // Save each tab's state
+        $('.wprrt-tab-content').each(function() {
+            const tabContent = $(this);
+            const tabId = tabContent.attr('id');
+            const tabTitle = $(`.wprrt-tab-header[data-tab-id="${tabId}"] .wprrt-tab-title`).text();
+
+            state.tabs.push({
+                id: tabId,
+                title: tabTitle,
+                route: tabContent.find('.wprrt-route').val(),
+                method: tabContent.find('.wprrt-method').val(),
+                headers: tabContent.find('.wprrt-headers').val(),
+                form: tabContent.find('.wprrt-form').val(),
+                body: tabContent.find('.wprrt-body').val(),
+                role: tabContent.find('.wprrt-role-selector').val(),
+                plugin: tabContent.find('.wprrt-plugin').val(),
+                response: tabContent.find('.wprrt-response').text()
+            });
+        });
+
+        localStorage.setItem('wprrt_state', JSON.stringify(state));
+    }
+
+    function loadState() {
+        const savedState = localStorage.getItem('wprrt_state');
+        if (!savedState) return null;
+        return JSON.parse(savedState);
+    }
+
+    function clearState() {
+        localStorage.removeItem('wprrt_state');
+    }
+
+    function showLoadingState() {
+        app.html(`
+            <div class="wprrt-loading">
+                <div class="wprrt-loading-spinner"></div>
+                <p>Loading routes...</p>
+            </div>
+        `);
+    }
+
+    function showErrorState(message) {
+        app.html(`
+            <div class="wprrt-error">
+                <p>${message}</p>
+            </div>
+        `);
+    }
 
     // Load user roles
     function loadUserRoles() {
@@ -16,8 +77,124 @@ jQuery(document).ready(function($) {
         });
     }
 
-    // Call loadUserRoles when the page loads
-    loadUserRoles();
+    function populatePluginDropdown(pluginSelect) {
+        pluginSelect.empty().append('<option value="all">All Plugins</option>');
+        Object.keys(pluginRoutes).sort().forEach(plugin => {
+            pluginSelect.append(`<option value="${plugin}">${plugin}</option>`);
+        });
+    }
+
+    function createNewTab(tabData = null) {
+        const tabId = tabData ? tabData.id : `tab-${++tabCounter}`;
+        const tabTitle = tabData ? tabData.title : `Request ${tabCounter}`;
+        
+        // Create tab header
+        const tabHeader = $(`
+            <div class="wprrt-tab-header" data-tab-id="${tabId}">
+                <span class="wprrt-tab-title">${tabTitle}</span>
+                <button class="wprrt-close-tab">&times;</button>
+            </div>
+        `);
+        
+        // Create tab content
+        const tabContent = $(`
+            <div class="wprrt-tab-content" id="${tabId}">
+                <div class="wprrt-container">
+                    <div class="wprrt-form">
+                        <label>Role:
+                            <select class="wprrt-role-selector">
+                            </select>
+                        </label>
+                        <label>Plugin:
+                            <select class="wprrt-plugin" style="width: 100%; margin-bottom: 10px;">
+                                <option value="all">All Plugins</option>
+                            </select>
+                        </label>
+                        <label>Route:
+                            <div class="wprrt-route-container" style="position: relative;">
+                                <input type="text" class="wprrt-route" placeholder="Enter or select a route" style="width: 100%;">
+                                <div class="wprrt-route-dropdown" style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 1000;">
+                                </div>
+                            </div>
+                        </label>
+                        <label>Method:
+                            <select class="wprrt-method">
+                                <option>GET</option>
+                                <option>POST</option>
+                                <option>PUT</option>
+                                <option>DELETE</option>
+                            </select>
+                        </label>
+
+                        <label>Headers (JSON):
+                            <textarea class="wprrt-headers" rows="4">{}</textarea>
+                        </label>
+
+                        <label style="display: none">Form Params (JSON):
+                            <textarea class="wprrt-form" rows="4">{}</textarea>
+                        </label>
+
+                        <label>Body (JSON):
+                            <textarea class="wprrt-body" rows="6">{}</textarea>
+                        </label>
+
+                        <button class="wprrt-test">Send</button>
+                    </div>
+                    <div class="wprrt-response-block">
+                        <h3>Response:</h3>
+                        <pre class="wprrt-response" style="max-height: 600px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">Waiting for request...</pre>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        // Add tab to the interface
+        $('.wprrt-tabs').append(tabHeader);
+        $('.wprrt-tab-content-wrapper').append(tabContent);
+
+        // Populate roles in the new tab
+        $.post(wprrt_vars.ajax_url, {
+            action: 'wprrt_get_user_roles',
+            nonce: wprrt_vars.nonce
+        }, res => {
+            if (res.success) {
+                const roleSelector = tabContent.find('.wprrt-role-selector');
+                Object.entries(res.data).forEach(([role, name]) => {
+                    roleSelector.append(`<option value="${role}">${name}</option>`);
+                });
+
+                // Restore saved data if available
+                if (tabData) {
+                    tabContent.find('.wprrt-route').val(tabData.route);
+                    tabContent.find('.wprrt-method').val(tabData.method);
+                    tabContent.find('.wprrt-headers').val(tabData.headers);
+                    tabContent.find('.wprrt-form').val(tabData.form);
+                    tabContent.find('.wprrt-body').val(tabData.body);
+                    tabContent.find('.wprrt-role-selector').val(tabData.role);
+                    tabContent.find('.wprrt-plugin').val(tabData.plugin);
+                    tabContent.find('.wprrt-response').text(tabData.response);
+                }
+            }
+        });
+
+        // Populate plugins in the new tab
+        populatePluginDropdown(tabContent.find('.wprrt-plugin'));
+
+        // Switch to the new tab
+        switchTab(tabId);
+    }
+
+    function switchTab(tabId) {
+        // Hide all tabs and remove active class
+        $('.wprrt-tab-content').hide();
+        $('.wprrt-tab-header').removeClass('active');
+        
+        // Show selected tab and add active class
+        $(`#${tabId}`).show();
+        $(`.wprrt-tab-header[data-tab-id="${tabId}"]`).addClass('active');
+        
+        activeTabId = tabId;
+    }
 
     function formatRoute(route) {
         console.log('Original route:', route);
@@ -32,62 +209,12 @@ jQuery(document).ready(function($) {
         return formatted;
     }
 
-    function renderRoutes(routes) {
-        let html = `
-        <div class="wprrt-container">
-            <div class="wprrt-form">
-                <label>Role:
-                    <select id="wprrt-role-selector" class="wprrt-role-selector">
-                    </select>
-                </label>
-                <label>Plugin:
-                    <select id="wprrt-plugin" style="width: 100%; margin-bottom: 10px;">
-                        <option value="all">All Plugins</option>
-                    </select>
-                </label>
-                <label>Route:
-                    <div class="wprrt-route-container" style="position: relative;">
-                        <input type="text" id="wprrt-route" placeholder="Enter or select a route" style="width: 100%;">
-                        <div id="wprrt-route-dropdown" style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 1000;">
-                        </div>
-                    </div>
-                </label>
-                <label>Method:
-                    <select id="wprrt-method">
-                        <option>GET</option>
-                        <option>POST</option>
-                        <option>PUT</option>
-                        <option>DELETE</option>
-                    </select>
-                </label>
-
-                <label>Headers (JSON):
-                    <textarea id="wprrt-headers" rows="4">{}</textarea>
-                </label>
-
-                <label style="display: none">Form Params (JSON):
-                    <textarea id="wprrt-form" rows="4">{}</textarea>
-                </label>
-
-                <label>Body (JSON):
-                    <textarea id="wprrt-body" rows="6">{}</textarea>
-                </label>
-
-                <button id="wprrt-test">Send</button>
-            </div>
-            <div class="wprrt-response-block">
-                <h3>Response:</h3>
-                <pre id="wprrt-response" style="max-height: 600px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">Waiting for request...</pre>
-            </div>
-        </div>`;
-        app.html(html);
-
-        // Load roles after the form is rendered
-        loadUserRoles();
-
-        const formattedRoutes = {};
-        const pluginRoutes = {};
+    function initializeApp(routes) {
+        // Reset global variables
+        formattedRoutes = {};
+        pluginRoutes = {};
         
+        // Process routes
         for (const route in routes) {
             const formattedRoute = formatRoute(route);
             formattedRoutes[formattedRoute] = route;
@@ -101,19 +228,125 @@ jQuery(document).ready(function($) {
             pluginRoutes[pluginName].push(formattedRoute);
         }
 
-        // Populate plugin dropdown
-        const pluginSelect = $('#wprrt-plugin');
-        Object.keys(pluginRoutes).sort().forEach(plugin => {
-            pluginSelect.append(`<option value="${plugin}">${plugin}</option>`);
+        // Create the tab interface
+        let html = `
+        <div class="wprrt-tabs-container">
+            <div class="wprrt-tabs-header">
+                <div class="wprrt-tabs"></div>
+                <button class="wprrt-add-tab">+ New Request</button>
+            </div>
+            <div class="wprrt-tab-content-wrapper"></div>
+        </div>`;
+        
+        app.html(html);
+
+        // Load saved state or create new tab
+        const savedState = loadState();
+        if (savedState && savedState.tabs.length > 0) {
+            savedState.tabs.forEach(tabData => createNewTab(tabData));
+            if (savedState.activeTabId) {
+                switchTab(savedState.activeTabId);
+            }
+        } else {
+            createNewTab();
+        }
+
+        // Add state saving to various events
+        $(document).on('change', '.wprrt-route, .wprrt-method, .wprrt-headers, .wprrt-form, .wprrt-body, .wprrt-role-selector, .wprrt-plugin', saveState);
+        $(document).on('click', '.wprrt-test', function() {
+            const tabContent = $(this).closest('.wprrt-tab-content');
+            const route = tabContent.find('.wprrt-route').val();
+            const method = tabContent.find('.wprrt-method').val();
+            const headers = tabContent.find('.wprrt-headers').val();
+            const form = tabContent.find('.wprrt-form').val();
+            const body = tabContent.find('.wprrt-body').val();
+            const role = tabContent.find('.wprrt-role-selector').val();
+            const responseElement = tabContent.find('.wprrt-response');
+            const testButton = tabContent.find('.wprrt-test');
+
+            // Show loading state
+            responseElement.html(`
+                <div class="wprrt-loading">
+                    <div class="wprrt-loading-spinner"></div>
+                    <p>Sending request...</p>
+                </div>
+            `);
+            testButton.prop('disabled', true);
+
+            const startTime = performance.now();
+
+            $.post(wprrt_vars.ajax_url, {
+                action: 'wprrt_test_route',
+                nonce: wprrt_vars.nonce,
+                route,
+                method,
+                headers,
+                form,
+                body,
+                role
+            }, res => {
+                const endTime = performance.now();
+                const responseTime = (endTime - startTime).toFixed(2);
+                
+                // Re-enable the test button
+                testButton.prop('disabled', false);
+                
+                if (res.success) {
+                    const responseData = {
+                        ...res.data,
+                        responseTime: `${responseTime}ms`
+                    };
+                    responseElement.text(JSON.stringify(responseData, null, 2));
+                    saveState(); // Save state after response
+                } else {
+                    const errorData = {
+                        error: res.data || 'Error testing route.',
+                        responseTime: `${responseTime}ms`
+                    };
+                    responseElement.text(JSON.stringify(errorData, null, 2));
+                }
+            }).fail(() => {
+                // Handle AJAX failure
+                testButton.prop('disabled', false);
+                responseElement.text(JSON.stringify({
+                    error: 'Failed to send request. Please try again.',
+                    responseTime: 'N/A'
+                }, null, 2));
+            });
         });
 
-        // Handle route input and dropdown
-        const routeInput = $('#wprrt-route');
-        const dropdown = $('#wprrt-route-dropdown');
+        // Save state when switching tabs
+        $(document).on('click', '.wprrt-tab-header', function(e) {
+            if (!$(e.target).hasClass('wprrt-close-tab')) {
+                switchTab($(this).data('tab-id'));
+                saveState();
+            }
+        });
 
-        function showRoutes() {
-            const selectedPlugin = $('#wprrt-plugin').val();
+        // Save state when closing tabs
+        $(document).on('click', '.wprrt-close-tab', function(e) {
+            e.stopPropagation();
+            const tabId = $(this).closest('.wprrt-tab-header').data('tab-id');
+            $(this).closest('.wprrt-tab-header').remove();
+            $(`#${tabId}`).remove();
+            
+            if (tabId === activeTabId) {
+                const remainingTab = $('.wprrt-tab-header').last();
+                if (remainingTab.length) {
+                    switchTab(remainingTab.data('tab-id'));
+                }
+            }
+            saveState();
+        });
+
+        // Handle route input and dropdown for each tab
+        $(document).on('focus', '.wprrt-route', function() {
+            const tabContent = $(this).closest('.wprrt-tab-content');
+            const dropdown = tabContent.find('.wprrt-route-dropdown');
+            const pluginSelect = tabContent.find('.wprrt-plugin');
+            
             dropdown.empty();
+            const selectedPlugin = pluginSelect.val();
             
             let routesToShow = [];
             if (selectedPlugin === 'all') {
@@ -126,15 +359,24 @@ jQuery(document).ready(function($) {
                 dropdown.append(`<div class="wprrt-route-option" style="padding: 5px; cursor: pointer;">${route}</div>`);
             });
             dropdown.show();
-        }
+        });
 
-        routeInput.on('focus', showRoutes);
-        
-        routeInput.on('input', function() {
+        // Close dropdown when clicking outside
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('.wprrt-route-container').length) {
+                $('.wprrt-route-dropdown').hide();
+            }
+        });
+
+        $(document).on('input', '.wprrt-route', function() {
             const value = $(this).val().toLowerCase();
-            const selectedPlugin = $('#wprrt-plugin').val();
+            const tabContent = $(this).closest('.wprrt-tab-content');
+            const dropdown = tabContent.find('.wprrt-route-dropdown');
+            const pluginSelect = tabContent.find('.wprrt-plugin');
             
             dropdown.empty();
+            const selectedPlugin = pluginSelect.val();
+            
             let routesToShow = [];
             if (selectedPlugin === 'all') {
                 routesToShow = Object.keys(formattedRoutes);
@@ -150,68 +392,36 @@ jQuery(document).ready(function($) {
             dropdown.show();
         });
 
-        dropdown.on('click', '.wprrt-route-option', function() {
+        $(document).on('click', '.wprrt-route-option', function() {
+            const tabContent = $(this).closest('.wprrt-tab-content');
+            const routeInput = tabContent.find('.wprrt-route');
             routeInput.val($(this).text());
-            dropdown.hide();
+            $(this).closest('.wprrt-route-dropdown').hide();
         });
 
-        $('#wprrt-plugin').on('change', function() {
-            routeInput.val(''); // Clear the route input
-            showRoutes();
+        $(document).on('change', '.wprrt-plugin', function() {
+            const tabContent = $(this).closest('.wprrt-tab-content');
+            const routeInput = tabContent.find('.wprrt-route');
+            routeInput.val('');
         });
 
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('.wprrt-route-container').length) {
-                dropdown.hide();
-            }
+        // Handle new tab creation
+        $(document).on('click', '.wprrt-add-tab', function() {
+            createNewTab();
         });
     }
 
+    // Show initial loading state
+    showLoadingState();
+
+    // Initial load of routes
     $.post(wprrt_vars.ajax_url, {
         action: 'wprrt_get_routes',
         nonce: wprrt_vars.nonce
     }, res => {
-        if (res.success) renderRoutes(res.data);
-        else app.html('<p>Failed to load routes.</p>');
-    });
-
-    app.on('click', '#wprrt-test', function() {
-        const route = $('#wprrt-route').val();
-        const method = $('#wprrt-method').val();
-        const headers = $('#wprrt-headers').val();
-        const form = $('#wprrt-form').val();
-        const body = $('#wprrt-body').val();
-        const role = $('#wprrt-role-selector').val();
-
-        $('#wprrt-response').text('Sending...');
-        const startTime = performance.now();
-
-        $.post(wprrt_vars.ajax_url, {
-            action: 'wprrt_test_route',
-            nonce: wprrt_vars.nonce,
-            route,
-            method,
-            headers,
-            form,
-            body,
-            role
-        }, res => {
-            const endTime = performance.now();
-            const responseTime = (endTime - startTime).toFixed(2);
-            
-            if (res.success) {
-                const responseData = {
-                    ...res.data,
-                    responseTime: `${responseTime}ms`
-                };
-                $('#wprrt-response').text(JSON.stringify(responseData, null, 2));
-            } else {
-                const errorData = {
-                    error: res.data || 'Error testing route.',
-                    responseTime: `${responseTime}ms`
-                };
-                $('#wprrt-response').text(JSON.stringify(errorData, null, 2));
-            }
-        });
+        if (res.success) initializeApp(res.data);
+        else showErrorState('Failed to load routes. Please refresh the page.');
+    }).fail(() => {
+        showErrorState('Failed to connect to the server. Please check your connection and refresh the page.');
     });
 });

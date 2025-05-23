@@ -12,7 +12,7 @@ Test and debug WordPress REST API routes with an intuitive interface. Perfect fo
 
 == Description ==
 
-WP REST Route Tester is a powerful tool for WordPress developers to test and debug REST API routes directly from the WordPress admin panel. This plugin provides a user-friendly interface to interact with your WordPress REST API endpoints, making development and testing more efficient.
+REST API Route Tester is a powerful tool for WordPress developers to test and debug REST API routes directly from the WordPress admin panel. This plugin provides a user-friendly interface to interact with your WordPress REST API endpoints, making development and testing more efficient.
 
 ## Key Features
 
