@@ -1,0 +1,38 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: REST API Route Tester\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-26 09:27+0000\n"
+"PO-Revision-Date: 2025-05-26 09:27+0000\n"
+"Last-Translator: \n"
+"Language-Team: English (United States)\n"
+"Language: en_US\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.8.0; wp-6.8.1; php-8.1.32\n"
+"X-Domain: rest-api-route-tester"
+
+#. Name of the plugin
+msgid "REST API Route Tester"
+msgstr ""
+
+#. Description of the plugin
+msgid ""
+"A tool to test WordPress REST API routes with different user roles and "
+"authentication methods."
+msgstr ""
+
+#. URI of the plugin
+msgid "https://wordpress.org/plugins/rest-api-route-tester/"
+msgstr ""
+
+#. Author of the plugin
+msgid "jawad0501"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://profiles.wordpress.org/jawad0501/"
+msgstr ""

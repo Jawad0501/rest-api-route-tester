@@ -129,6 +129,23 @@
 .wprrt-tab-content.active {
     display: block;
 }
+.wprrt-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    background: #fff;
+    border: 1px dashed #c3c4c7;
+    border-radius: 6px;
+}
+.wprrt-empty-inner {
+    text-align: center;
+    color: #666;
+}
+.wprrt-empty-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
 .wprrt-loading {
     display: flex;
     flex-direction: column;
@@ -157,4 +174,66 @@
 @keyframes wprrt-spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Field container and help text styles */
+.wprrt-field-container {
+    position: relative;
+}
+
+.wprrt-field-help {
+    margin-top: 5px;
+    color: #666;
+    font-style: italic;
+}
+
+.wprrt-field-help small {
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* Enhanced textarea styling for JSON fields */
+.wprrt-headers,
+.wprrt-body {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 80px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.wprrt-headers::placeholder,
+.wprrt-body::placeholder {
+    color: #999;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* Route dropdown styling */
+.wprrt-route-dropdown {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.wprrt-route-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+}
+
+.wprrt-route-option:hover {
+    background-color: #f8f9fa;
+}
+
+.wprrt-route-option:last-child {
+    border-bottom: none;
 }

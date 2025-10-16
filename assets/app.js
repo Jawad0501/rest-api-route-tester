@@ -4,6 +4,7 @@ jQuery(document).ready(function($) {
     let tabCounter = 0;
     let pluginRoutes = {}; // Store plugin routes globally
     let formattedRoutes = {}; // Store formatted routes globally
+    let routeMethods = {}; // Store route methods globally
 
     // State management functions
     function saveState() {
@@ -127,15 +128,34 @@ jQuery(document).ready(function($) {
                         </label>
 
                         <label>Headers (JSON):
-                            <textarea class="wprrt-headers" rows="4">{}</textarea>
+                            <div class="wprrt-field-container">
+                                <textarea class="wprrt-headers" rows="4" placeholder='{
+  "Content-Type": "application/json",
+  "Authorization": "Bearer your-token",
+  "X-Custom-Header": "value"
+}'></textarea>
+                                <div class="wprrt-field-help">
+                                    <small>Example: Add authentication headers, content type, etc.</small>
+                                </div>
+                            </div>
                         </label>
 
                         <label style="display: none">Form Params (JSON):
-                            <textarea class="wprrt-form" rows="4">{}</textarea>
+                            <textarea class="wprrt-form" rows="4"></textarea>
                         </label>
 
                         <label>Body (JSON):
-                            <textarea class="wprrt-body" rows="6">{}</textarea>
+                            <div class="wprrt-field-container">
+                                <textarea class="wprrt-body" rows="6" placeholder='{
+  "title": "Your Title",
+  "content": "Your Content",
+  "status": "publish",
+  "author": 1
+}'></textarea>
+                                <div class="wprrt-field-help">
+                                    <small>Example: For POST/PUT requests, include the data you want to send.</small>
+                                </div>
+                            </div>
                         </label>
 
                         <button class="wprrt-test">Send</button>
@@ -150,6 +170,8 @@ jQuery(document).ready(function($) {
 
         // Add tab to the interface
         $('.wprrt-tabs').append(tabHeader);
+        // Remove empty placeholder if present
+        $('.wprrt-tab-content-wrapper .wprrt-empty').remove();
         $('.wprrt-tab-content-wrapper').append(tabContent);
 
         // Populate roles in the new tab
@@ -167,9 +189,9 @@ jQuery(document).ready(function($) {
                 if (tabData) {
                     tabContent.find('.wprrt-route').val(tabData.route);
                     tabContent.find('.wprrt-method').val(tabData.method);
-                    tabContent.find('.wprrt-headers').val(tabData.headers);
-                    tabContent.find('.wprrt-form').val(tabData.form);
-                    tabContent.find('.wprrt-body').val(tabData.body);
+                    tabContent.find('.wprrt-headers').val(tabData.headers && tabData.headers !== '{}' ? tabData.headers : '');
+                    tabContent.find('.wprrt-form').val(tabData.form && tabData.form !== '{}' ? tabData.form : '');
+                    tabContent.find('.wprrt-body').val(tabData.body && tabData.body !== '{}' ? tabData.body : '');
                     tabContent.find('.wprrt-role-selector').val(tabData.role);
                     tabContent.find('.wprrt-plugin').val(tabData.plugin);
                     tabContent.find('.wprrt-response').text(tabData.response);
@@ -213,11 +235,19 @@ jQuery(document).ready(function($) {
         // Reset global variables
         formattedRoutes = {};
         pluginRoutes = {};
+        routeMethods = {};
         
         // Process routes
         for (const route in routes) {
+            const routeData = routes[route];
             const formattedRoute = formatRoute(route);
             formattedRoutes[formattedRoute] = route;
+            
+            // Store method information
+            routeMethods[formattedRoute] = {
+                methods: routeData.methods || ['GET'],
+                primary_method: routeData.primary_method || 'GET'
+            };
             
             const pluginMatch = route.match(/^\/([^\/]+)/);
             const pluginName = pluginMatch ? pluginMatch[1] : 'other';
@@ -243,6 +273,16 @@ jQuery(document).ready(function($) {
         // Load saved state or create new tab
         const savedState = loadState();
         if (savedState && savedState.tabs.length > 0) {
+            // Initialize tabCounter based on existing tabs to avoid conflicts
+            savedState.tabs.forEach(tabData => {
+                if (tabData.id && tabData.id.startsWith('tab-')) {
+                    const tabNumber = parseInt(tabData.id.replace('tab-', ''));
+                    if (tabNumber > tabCounter) {
+                        tabCounter = tabNumber;
+                    }
+                }
+            });
+            
             savedState.tabs.forEach(tabData => createNewTab(tabData));
             if (savedState.activeTabId) {
                 switchTab(savedState.activeTabId);
@@ -336,6 +376,23 @@ jQuery(document).ready(function($) {
                     switchTab(remainingTab.data('tab-id'));
                 }
             }
+            // If there are no tabs left, show placeholder container
+            if ($('.wprrt-tab-header').length === 0) {
+                // Reset counters and state when no tabs remain
+                tabCounter = 0;
+                activeTabId = null;
+                clearState();
+                $('.wprrt-tab-content-wrapper').html(`
+                    <div class="wprrt-empty">
+                        <div class="wprrt-empty-inner">
+                            <div class="wprrt-empty-icon">🗂️</div>
+                            <h3>No requests yet</h3>
+                            <p>Create a new request to get started.</p>
+                            <button class="wprrt-add-tab">+ New Request</button>
+                        </div>
+                    </div>
+                `);
+            }
             saveState();
         });
 
@@ -395,8 +452,17 @@ jQuery(document).ready(function($) {
         $(document).on('click', '.wprrt-route-option', function() {
             const tabContent = $(this).closest('.wprrt-tab-content');
             const routeInput = tabContent.find('.wprrt-route');
-            routeInput.val($(this).text());
+            const methodSelect = tabContent.find('.wprrt-method');
+            const selectedRoute = $(this).text();
+            
+            routeInput.val(selectedRoute);
             $(this).closest('.wprrt-route-dropdown').hide();
+            
+            // Auto-select the primary method for the selected route
+            if (routeMethods[selectedRoute]) {
+                const primaryMethod = routeMethods[selectedRoute].primary_method;
+                methodSelect.val(primaryMethod);
+            }
         });
 
         $(document).on('change', '.wprrt-plugin', function() {
