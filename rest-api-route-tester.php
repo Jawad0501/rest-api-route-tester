@@ -3,7 +3,7 @@
  * Plugin Name: REST API Route Tester
  * Plugin URI: https://wordpress.org/plugins/rest-api-route-tester/
  * Description: A tool to test WordPress REST API routes with different user roles and authentication methods.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: jawad0501
  * Author URI: https://profiles.wordpress.org/jawad0501/
  * License: GPL v2 or later
@@ -40,7 +40,7 @@ class RESTAPIRouteTester {
     public function enqueue_scripts($hook) {
         if ($hook !== 'toplevel_page_rest-api-route-tester') return;
 
-        $version = '1.0.0';
+        $version = '1.0.1';
         wp_enqueue_style('wprrt-style', plugin_dir_url(__FILE__) . 'assets/style.css', array(), $version);
         wp_enqueue_script('wprrt-script', plugin_dir_url(__FILE__) . 'assets/app.js', array('jquery'), $version, true);
 
@@ -117,15 +117,26 @@ class RESTAPIRouteTester {
         $role = sanitize_text_field(wp_unslash($_POST['role'] ?? ''));
 
         // Validate method
-        $allowed_methods = ['GET', 'POST', 'PUT', 'DELETE'];
+        $allowed_methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'];
         if (!in_array(strtoupper($method), $allowed_methods)) {
             wp_send_json_error('Invalid method');
+        }
+
+        // Guard against oversized payloads (512 KB)
+        if (strlen($raw_data) > 524288) {
+            wp_send_json_error('Request body exceeds maximum allowed size of 512 KB');
         }
 
         // Validate JSON data
         $data = json_decode($raw_data, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             wp_send_json_error('Invalid JSON data');
+        }
+
+        // Validate route exists in the REST server
+        $registered_routes = rest_get_server()->get_routes();
+        if (!isset($registered_routes[$route])) {
+            wp_send_json_error('Route not found: ' . $route);
         }
 
         // Create a test user with the specified role if a role is provided
@@ -138,30 +149,33 @@ class RESTAPIRouteTester {
             }
             wp_set_current_user($test_user->ID);
         }
-        
-        // For POST and PUT requests, only pass the body data
-        if (in_array($method, ['POST', 'PUT'])) {
-            $request = new WP_REST_Request($method, $route);
-            
-            // Decode the JSON body and set it as parameters
-            if (is_array($data)) {
-                foreach ($data as $key => $value) {
-                    $request->set_param($key, $value);
-                }
-            }
-        } else {
-            // For GET and DELETE, process as before
-            $request = new WP_REST_Request($method, $route);
-        }
 
-        $response = rest_do_request($request);
-        
-        // Clean up test user if one was created
-        if ($test_user) {
-            wp_delete_user($test_user->ID);
+        try {
+            // For POST and PUT/PATCH requests, set body params
+            if (in_array($method, ['POST', 'PUT', 'PATCH'])) {
+                $request = new WP_REST_Request($method, $route);
+                if (is_array($data)) {
+                    foreach ($data as $key => $value) {
+                        $request->set_param($key, $value);
+                    }
+                }
+            } else {
+                $request = new WP_REST_Request($method, $route);
+            }
+
+            $response = rest_do_request($request);
+
+            wp_send_json_success([
+                'status'  => $response->get_status(),
+                'headers' => $response->get_headers(),
+                'data'    => $response->get_data(),
+            ]);
+        } finally {
+            // Always clean up the test user, even if an exception was thrown
+            if ($test_user) {
+                wp_delete_user($test_user->ID);
+            }
         }
-        
-        wp_send_json_success($response->get_data());
     }
 
     private function create_test_user($role) {

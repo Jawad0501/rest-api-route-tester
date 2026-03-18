@@ -1,9 +1,9 @@
 # Rest API Route Tester
-Version: 1.0.0
+Version: 1.0.1
 Author: Nowshad Jawad
 Requires at least: 4.5
 Tested up to: 6.8
-Stable Tag: 1.0.0
+Stable Tag: 1.0.1
 License: GPLv2 or later
 
 
@@ -25,10 +25,7 @@ A powerful WordPress plugin that provides a user-friendly interface to test Word
 
 ### 3. Comprehensive Request Testing
 - Support for all HTTP methods:
-  - GET
-  - POST
-  - PUT
-  - DELETE
+  - GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD
 - Customizable request components:
   - Headers (JSON format)
   - Form Parameters (JSON format)
@@ -78,6 +75,22 @@ A powerful WordPress plugin that provides a user-friendly interface to test Word
 - Always use nonces for AJAX requests
 - Consider disabling the plugin in production environments
 
+
+## Changelog
+
+### 1.0.1
+- Security: Fixed XSS vulnerability in route dropdown (textContent instead of innerHTML)
+- Security: Temporary test users now always cleaned up via try/finally
+- Security: Added 512 KB request body size limit
+- Security: Added route existence validation before execution
+- Added PATCH, OPTIONS, HEAD HTTP method support
+- Response now includes HTTP status code and response headers
+- Removed debug console.log() calls from frontend
+- Removed dead "Form Params" hidden field
+- JS globals consolidated into WPRRT namespace
+
+### 1.0.0
+- Initial release
 
 ## License
 

@@ -1,19 +1,25 @@
 jQuery(document).ready(function($) {
     const app = $('#wprrt-app');
-    let activeTabId = null;
-    let tabCounter = 0;
-    let pluginRoutes = {}; // Store plugin routes globally
-    let formattedRoutes = {}; // Store formatted routes globally
-    let routeMethods = {}; // Store route methods globally
 
-    // State management functions
+    // Single namespace object — no bare globals
+    const WPRRT = {
+        activeTabId: null,
+        tabCounter: 0,
+        pluginRoutes: {},
+        formattedRoutes: {},
+        routeMethods: {}
+    };
+
+    // -------------------------------------------------------------------------
+    // State management
+    // -------------------------------------------------------------------------
+
     function saveState() {
         const state = {
             tabs: [],
-            activeTabId: activeTabId
+            activeTabId: WPRRT.activeTabId
         };
 
-        // Save each tab's state
         $('.wprrt-tab-content').each(function() {
             const tabContent = $(this);
             const tabId = tabContent.attr('id');
@@ -25,7 +31,6 @@ jQuery(document).ready(function($) {
                 route: tabContent.find('.wprrt-route').val(),
                 method: tabContent.find('.wprrt-method').val(),
                 headers: tabContent.find('.wprrt-headers').val(),
-                form: tabContent.find('.wprrt-form').val(),
                 body: tabContent.find('.wprrt-body').val(),
                 role: tabContent.find('.wprrt-role-selector').val(),
                 plugin: tabContent.find('.wprrt-plugin').val(),
@@ -37,280 +42,281 @@ jQuery(document).ready(function($) {
     }
 
     function loadState() {
-        const savedState = localStorage.getItem('wprrt_state');
-        if (!savedState) return null;
-        return JSON.parse(savedState);
+        const saved = localStorage.getItem('wprrt_state');
+        if (!saved) return null;
+        return JSON.parse(saved);
     }
 
     function clearState() {
         localStorage.removeItem('wprrt_state');
     }
 
+    // -------------------------------------------------------------------------
+    // Loading / error states
+    // -------------------------------------------------------------------------
+
     function showLoadingState() {
-        app.html(`
-            <div class="wprrt-loading">
-                <div class="wprrt-loading-spinner"></div>
-                <p>Loading routes...</p>
-            </div>
-        `);
+        app.html(
+            '<div class="wprrt-loading">' +
+                '<div class="wprrt-loading-spinner"></div>' +
+                '<p>Loading routes...</p>' +
+            '</div>'
+        );
     }
 
     function showErrorState(message) {
-        app.html(`
-            <div class="wprrt-error">
-                <p>${message}</p>
-            </div>
-        `);
+        const wrapper = $('<div class="wprrt-error"></div>');
+        wrapper.append($('<p></p>').text(message));
+        app.html('').append(wrapper);
     }
 
-    // Load user roles
-    function loadUserRoles() {
+    // -------------------------------------------------------------------------
+    // Route formatting — safely converts WP regex patterns to {param} form
+    // -------------------------------------------------------------------------
+
+    function formatRoute(route) {
+        // Named capture groups: (?P<id>[0-9]+) → {id}
+        let formatted = route.replace(/\(\?P<([^>]+)>[^)]+\)/g, '{$1}');
+        // Unnamed groups → {}
+        formatted = formatted.replace(/\([^)]+\)/g, '{}');
+        // Clean up orphaned regex syntax
+        formatted = formatted.replace(/[)\[\]+]+/g, '');
+        return formatted;
+    }
+
+    // -------------------------------------------------------------------------
+    // Plugin dropdown
+    // -------------------------------------------------------------------------
+
+    function populatePluginDropdown(pluginSelect) {
+        pluginSelect.empty();
+
+        const allOpt = document.createElement('option');
+        allOpt.value = 'all';
+        allOpt.textContent = 'All Plugins';
+        pluginSelect.append(allOpt);
+
+        Object.keys(WPRRT.pluginRoutes).sort().forEach(plugin => {
+            const opt = document.createElement('option');
+            opt.value = plugin;
+            opt.textContent = plugin;
+            pluginSelect.append(opt);
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Role selector — safe DOM insertion
+    // -------------------------------------------------------------------------
+
+    function populateRoleSelector(roleSelector, selectedRole) {
+        roleSelector.empty();
         $.post(wprrt_vars.ajax_url, {
             action: 'wprrt_get_user_roles',
             nonce: wprrt_vars.nonce
         }, res => {
-            if (res.success) {
-                const roleSelector = $('#wprrt-role-selector');
-                Object.entries(res.data).forEach(([role, name]) => {
-                    roleSelector.append(`<option value="${role}">${name}</option>`);
-                });
+            if (!res.success) return;
+            Object.entries(res.data).forEach(([role, name]) => {
+                const opt = document.createElement('option');
+                opt.value = role;
+                opt.textContent = name;
+                roleSelector.append(opt);
+            });
+            if (selectedRole !== undefined) {
+                roleSelector.val(selectedRole);
             }
         });
     }
 
-    function populatePluginDropdown(pluginSelect) {
-        pluginSelect.empty().append('<option value="all">All Plugins</option>');
-        Object.keys(pluginRoutes).sort().forEach(plugin => {
-            pluginSelect.append(`<option value="${plugin}">${plugin}</option>`);
+    // -------------------------------------------------------------------------
+    // Route dropdown — safe DOM insertion (XSS fix)
+    // -------------------------------------------------------------------------
+
+    function buildRouteDropdown(dropdown, routes) {
+        dropdown.empty();
+        routes.forEach(route => {
+            const div = document.createElement('div');
+            div.className = 'wprrt-route-option';
+            div.style.cssText = 'padding: 5px; cursor: pointer;';
+            div.textContent = route; // textContent — never innerHTML
+            dropdown.append(div);
         });
     }
 
-    function createNewTab(tabData = null) {
-        const tabId = tabData ? tabData.id : `tab-${++tabCounter}`;
-        const tabTitle = tabData ? tabData.title : `Request ${tabCounter}`;
-        
-        // Create tab header
-        const tabHeader = $(`
-            <div class="wprrt-tab-header" data-tab-id="${tabId}">
-                <span class="wprrt-tab-title">${tabTitle}</span>
-                <button class="wprrt-close-tab">&times;</button>
-            </div>
-        `);
-        
-        // Create tab content
-        const tabContent = $(`
-            <div class="wprrt-tab-content" id="${tabId}">
-                <div class="wprrt-container">
-                    <div class="wprrt-form">
-                        <label>Role:
-                            <select class="wprrt-role-selector">
-                            </select>
-                        </label>
-                        <label>Plugin:
-                            <select class="wprrt-plugin" style="width: 100%; margin-bottom: 10px;">
-                                <option value="all">All Plugins</option>
-                            </select>
-                        </label>
-                        <label>Route:
-                            <div class="wprrt-route-container" style="position: relative;">
-                                <input type="text" class="wprrt-route" placeholder="Enter or select a route" style="width: 100%;">
-                                <div class="wprrt-route-dropdown" style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 1000;">
-                                </div>
-                            </div>
-                        </label>
-                        <label>Method:
-                            <select class="wprrt-method">
-                                <option>GET</option>
-                                <option>POST</option>
-                                <option>PUT</option>
-                                <option>DELETE</option>
-                            </select>
-                        </label>
+    // -------------------------------------------------------------------------
+    // Tab system
+    // -------------------------------------------------------------------------
 
-                        <label>Headers (JSON):
-                            <div class="wprrt-field-container">
-                                <textarea class="wprrt-headers" rows="4" placeholder='{
-  "Content-Type": "application/json",
-  "Authorization": "Bearer your-token",
-  "X-Custom-Header": "value"
-}'></textarea>
-                                <div class="wprrt-field-help">
-                                    <small>Example: Add authentication headers, content type, etc.</small>
-                                </div>
-                            </div>
-                        </label>
+    function createNewTab(tabData) {
+        const tabId    = tabData ? tabData.id : `tab-${++WPRRT.tabCounter}`;
+        const tabTitle = tabData ? tabData.title : `Request ${WPRRT.tabCounter}`;
 
-                        <label style="display: none">Form Params (JSON):
-                            <textarea class="wprrt-form" rows="4"></textarea>
-                        </label>
+        // Tab header
+        const tabHeader = $(
+            `<div class="wprrt-tab-header" data-tab-id="${tabId}">` +
+                `<span class="wprrt-tab-title"></span>` +
+                `<button class="wprrt-close-tab">&times;</button>` +
+            `</div>`
+        );
+        tabHeader.find('.wprrt-tab-title').text(tabTitle);
 
-                        <label>Body (JSON):
-                            <div class="wprrt-field-container">
-                                <textarea class="wprrt-body" rows="6" placeholder='{
-  "title": "Your Title",
-  "content": "Your Content",
-  "status": "publish",
-  "author": 1
-}'></textarea>
-                                <div class="wprrt-field-help">
-                                    <small>Example: For POST/PUT requests, include the data you want to send.</small>
-                                </div>
-                            </div>
-                        </label>
+        // Tab content — built with static HTML, dynamic values injected safely below
+        const tabContent = $(
+            `<div class="wprrt-tab-content" id="${tabId}">` +
+                `<div class="wprrt-container">` +
+                    `<div class="wprrt-form">` +
+                        `<label>Role:<select class="wprrt-role-selector"></select></label>` +
+                        `<label>Plugin:` +
+                            `<select class="wprrt-plugin" style="width:100%;margin-bottom:10px;"></select>` +
+                        `</label>` +
+                        `<label>Route:` +
+                            `<div class="wprrt-route-container" style="position:relative;">` +
+                                `<input type="text" class="wprrt-route" placeholder="Enter or select a route" style="width:100%;">` +
+                                `<div class="wprrt-route-dropdown" style="display:none;position:absolute;width:100%;"></div>` +
+                            `</div>` +
+                        `</label>` +
+                        `<label>Method:` +
+                            `<select class="wprrt-method">` +
+                                `<option>GET</option>` +
+                                `<option>POST</option>` +
+                                `<option>PUT</option>` +
+                                `<option>PATCH</option>` +
+                                `<option>DELETE</option>` +
+                                `<option>OPTIONS</option>` +
+                                `<option>HEAD</option>` +
+                            `</select>` +
+                        `</label>` +
+                        `<label>Headers (JSON):` +
+                            `<div class="wprrt-field-container">` +
+                                `<textarea class="wprrt-headers" rows="4" placeholder='{\n  "Authorization": "Bearer your-token"\n}'></textarea>` +
+                                `<div class="wprrt-field-help"><small>Add authentication headers, content type, etc.</small></div>` +
+                            `</div>` +
+                        `</label>` +
+                        `<label>Body (JSON):` +
+                            `<div class="wprrt-field-container">` +
+                                `<textarea class="wprrt-body" rows="6" placeholder='{\n  "title": "Your Title",\n  "status": "publish"\n}'></textarea>` +
+                                `<div class="wprrt-field-help"><small>For POST/PUT/PATCH requests.</small></div>` +
+                            `</div>` +
+                        `</label>` +
+                        `<button class="wprrt-test">Send</button>` +
+                    `</div>` +
+                    `<div class="wprrt-response-block">` +
+                        `<h3>Response:</h3>` +
+                        `<pre class="wprrt-response" style="max-height:600px;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;">Waiting for request...</pre>` +
+                    `</div>` +
+                `</div>` +
+            `</div>`
+        );
 
-                        <button class="wprrt-test">Send</button>
-                    </div>
-                    <div class="wprrt-response-block">
-                        <h3>Response:</h3>
-                        <pre class="wprrt-response" style="max-height: 600px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">Waiting for request...</pre>
-                    </div>
-                </div>
-            </div>
-        `);
-
-        // Add tab to the interface
         $('.wprrt-tabs').append(tabHeader);
-        // Remove empty placeholder if present
         $('.wprrt-tab-content-wrapper .wprrt-empty').remove();
         $('.wprrt-tab-content-wrapper').append(tabContent);
 
-        // Populate roles in the new tab
-        $.post(wprrt_vars.ajax_url, {
-            action: 'wprrt_get_user_roles',
-            nonce: wprrt_vars.nonce
-        }, res => {
-            if (res.success) {
-                const roleSelector = tabContent.find('.wprrt-role-selector');
-                Object.entries(res.data).forEach(([role, name]) => {
-                    roleSelector.append(`<option value="${role}">${name}</option>`);
-                });
-
-                // Restore saved data if available
-                if (tabData) {
-                    tabContent.find('.wprrt-route').val(tabData.route);
-                    tabContent.find('.wprrt-method').val(tabData.method);
-                    tabContent.find('.wprrt-headers').val(tabData.headers && tabData.headers !== '{}' ? tabData.headers : '');
-                    tabContent.find('.wprrt-form').val(tabData.form && tabData.form !== '{}' ? tabData.form : '');
-                    tabContent.find('.wprrt-body').val(tabData.body && tabData.body !== '{}' ? tabData.body : '');
-                    tabContent.find('.wprrt-role-selector').val(tabData.role);
-                    tabContent.find('.wprrt-plugin').val(tabData.plugin);
-                    tabContent.find('.wprrt-response').text(tabData.response);
-                }
-            }
-        });
-
-        // Populate plugins in the new tab
+        // Populate dynamic fields safely
+        populateRoleSelector(tabContent.find('.wprrt-role-selector'), tabData ? tabData.role : undefined);
         populatePluginDropdown(tabContent.find('.wprrt-plugin'));
 
-        // Switch to the new tab
+        // Restore saved values if present
+        if (tabData) {
+            tabContent.find('.wprrt-route').val(tabData.route || '');
+            tabContent.find('.wprrt-method').val(tabData.method || 'GET');
+            tabContent.find('.wprrt-headers').val(tabData.headers && tabData.headers !== '{}' ? tabData.headers : '');
+            tabContent.find('.wprrt-body').val(tabData.body && tabData.body !== '{}' ? tabData.body : '');
+            tabContent.find('.wprrt-plugin').val(tabData.plugin || 'all');
+            tabContent.find('.wprrt-response').text(tabData.response || 'Waiting for request...');
+        }
+
         switchTab(tabId);
     }
 
     function switchTab(tabId) {
-        // Hide all tabs and remove active class
         $('.wprrt-tab-content').hide();
         $('.wprrt-tab-header').removeClass('active');
-        
-        // Show selected tab and add active class
         $(`#${tabId}`).show();
         $(`.wprrt-tab-header[data-tab-id="${tabId}"]`).addClass('active');
-        
-        activeTabId = tabId;
+        WPRRT.activeTabId = tabId;
     }
 
-    function formatRoute(route) {
-        console.log('Original route:', route);
-        let formatted = route.replace(/\(\?P<([^>]+)>[^)]+\)/g, '{$1}');
-        console.log('After named params:', formatted);
-        formatted = formatted.replace(/\([^)]+\)/g, '{}');
-        console.log('After unnamed params:', formatted);
-        formatted = formatted.replace(/\}\s*\)\+?\]?/g, '}');
-        console.log('After cleanup:', formatted);
-        formatted = formatted.replace(/[)\[\]\+]+/g, '');
-        console.log('Final result:', formatted);
-        return formatted;
-    }
+    // -------------------------------------------------------------------------
+    // App init — called once routes load
+    // -------------------------------------------------------------------------
 
     function initializeApp(routes) {
-        // Reset global variables
-        formattedRoutes = {};
-        pluginRoutes = {};
-        routeMethods = {};
-        
-        // Process routes
+        WPRRT.formattedRoutes = {};
+        WPRRT.pluginRoutes    = {};
+        WPRRT.routeMethods    = {};
+
         for (const route in routes) {
-            const routeData = routes[route];
+            const routeData      = routes[route];
             const formattedRoute = formatRoute(route);
-            formattedRoutes[formattedRoute] = route;
-            
-            // Store method information
-            routeMethods[formattedRoute] = {
-                methods: routeData.methods || ['GET'],
+
+            WPRRT.formattedRoutes[formattedRoute] = route;
+            WPRRT.routeMethods[formattedRoute] = {
+                methods:        routeData.methods || ['GET'],
                 primary_method: routeData.primary_method || 'GET'
             };
-            
+
             const pluginMatch = route.match(/^\/([^\/]+)/);
-            const pluginName = pluginMatch ? pluginMatch[1] : 'other';
-            
-            if (!pluginRoutes[pluginName]) {
-                pluginRoutes[pluginName] = [];
+            const pluginName  = pluginMatch ? pluginMatch[1] : 'other';
+
+            if (!WPRRT.pluginRoutes[pluginName]) {
+                WPRRT.pluginRoutes[pluginName] = [];
             }
-            pluginRoutes[pluginName].push(formattedRoute);
+            WPRRT.pluginRoutes[pluginName].push(formattedRoute);
         }
 
-        // Create the tab interface
-        let html = `
-        <div class="wprrt-tabs-container">
-            <div class="wprrt-tabs-header">
-                <div class="wprrt-tabs"></div>
-                <button class="wprrt-add-tab">+ New Request</button>
-            </div>
-            <div class="wprrt-tab-content-wrapper"></div>
-        </div>`;
-        
-        app.html(html);
+        app.html(
+            '<div class="wprrt-tabs-container">' +
+                '<div class="wprrt-tabs-header">' +
+                    '<div class="wprrt-tabs"></div>' +
+                    '<button class="wprrt-add-tab">+ New Request</button>' +
+                '</div>' +
+                '<div class="wprrt-tab-content-wrapper"></div>' +
+            '</div>'
+        );
 
-        // Load saved state or create new tab
+        // Restore saved state or create a fresh tab
         const savedState = loadState();
         if (savedState && savedState.tabs.length > 0) {
-            // Initialize tabCounter based on existing tabs to avoid conflicts
             savedState.tabs.forEach(tabData => {
                 if (tabData.id && tabData.id.startsWith('tab-')) {
-                    const tabNumber = parseInt(tabData.id.replace('tab-', ''));
-                    if (tabNumber > tabCounter) {
-                        tabCounter = tabNumber;
-                    }
+                    const n = parseInt(tabData.id.replace('tab-', ''), 10);
+                    if (n > WPRRT.tabCounter) WPRRT.tabCounter = n;
                 }
             });
-            
             savedState.tabs.forEach(tabData => createNewTab(tabData));
-            if (savedState.activeTabId) {
-                switchTab(savedState.activeTabId);
-            }
+            if (savedState.activeTabId) switchTab(savedState.activeTabId);
         } else {
             createNewTab();
         }
 
-        // Add state saving to various events
-        $(document).on('change', '.wprrt-route, .wprrt-method, .wprrt-headers, .wprrt-form, .wprrt-body, .wprrt-role-selector, .wprrt-plugin', saveState);
-        $(document).on('click', '.wprrt-test', function() {
-            const tabContent = $(this).closest('.wprrt-tab-content');
-            const route = tabContent.find('.wprrt-route').val();
-            const method = tabContent.find('.wprrt-method').val();
-            const headers = tabContent.find('.wprrt-headers').val();
-            const form = tabContent.find('.wprrt-form').val();
-            const body = tabContent.find('.wprrt-body').val();
-            const role = tabContent.find('.wprrt-role-selector').val();
-            const responseElement = tabContent.find('.wprrt-response');
-            const testButton = tabContent.find('.wprrt-test');
+        // -------------------------------------------------------------------------
+        // Event delegation
+        // -------------------------------------------------------------------------
 
-            // Show loading state
-            responseElement.html(`
-                <div class="wprrt-loading">
-                    <div class="wprrt-loading-spinner"></div>
-                    <p>Sending request...</p>
-                </div>
-            `);
+        // Persist form changes
+        $(document).on(
+            'change',
+            '.wprrt-route, .wprrt-method, .wprrt-headers, .wprrt-body, .wprrt-role-selector, .wprrt-plugin',
+            saveState
+        );
+
+        // Send request
+        $(document).on('click', '.wprrt-test', function() {
+            const tabContent     = $(this).closest('.wprrt-tab-content');
+            const route          = tabContent.find('.wprrt-route').val();
+            const method         = tabContent.find('.wprrt-method').val();
+            const headers        = tabContent.find('.wprrt-headers').val();
+            const body           = tabContent.find('.wprrt-body').val();
+            const role           = tabContent.find('.wprrt-role-selector').val();
+            const responseEl     = tabContent.find('.wprrt-response');
+            const testButton     = tabContent.find('.wprrt-test');
+
+            responseEl.html(
+                '<div class="wprrt-loading">' +
+                    '<div class="wprrt-loading-spinner"></div>' +
+                    '<p>Sending request...</p>' +
+                '</div>'
+            );
             testButton.prop('disabled', true);
 
             const startTime = performance.now();
@@ -321,41 +327,37 @@ jQuery(document).ready(function($) {
                 route,
                 method,
                 headers,
-                form,
                 body,
                 role
             }, res => {
-                const endTime = performance.now();
-                const responseTime = (endTime - startTime).toFixed(2);
-                
-                // Re-enable the test button
+                const elapsed = (performance.now() - startTime).toFixed(2);
                 testButton.prop('disabled', false);
-                
+
                 if (res.success) {
-                    const responseData = {
-                        ...res.data,
-                        responseTime: `${responseTime}ms`
+                    const display = {
+                        status:       res.data.status,
+                        responseTime: `${elapsed}ms`,
+                        headers:      res.data.headers,
+                        data:         res.data.data
                     };
-                    responseElement.text(JSON.stringify(responseData, null, 2));
-                    saveState(); // Save state after response
+                    responseEl.text(JSON.stringify(display, null, 2));
+                    saveState();
                 } else {
-                    const errorData = {
-                        error: res.data || 'Error testing route.',
-                        responseTime: `${responseTime}ms`
-                    };
-                    responseElement.text(JSON.stringify(errorData, null, 2));
+                    responseEl.text(JSON.stringify({
+                        error:        res.data || 'Error testing route.',
+                        responseTime: `${elapsed}ms`
+                    }, null, 2));
                 }
             }).fail(() => {
-                // Handle AJAX failure
                 testButton.prop('disabled', false);
-                responseElement.text(JSON.stringify({
-                    error: 'Failed to send request. Please try again.',
+                responseEl.text(JSON.stringify({
+                    error:        'Failed to send request. Please try again.',
                     responseTime: 'N/A'
                 }, null, 2));
             });
         });
 
-        // Save state when switching tabs
+        // Tab switching
         $(document).on('click', '.wprrt-tab-header', function(e) {
             if (!$(e.target).hasClass('wprrt-close-tab')) {
                 switchTab($(this).data('tab-id'));
@@ -363,124 +365,105 @@ jQuery(document).ready(function($) {
             }
         });
 
-        // Save state when closing tabs
+        // Tab closing
         $(document).on('click', '.wprrt-close-tab', function(e) {
             e.stopPropagation();
             const tabId = $(this).closest('.wprrt-tab-header').data('tab-id');
             $(this).closest('.wprrt-tab-header').remove();
             $(`#${tabId}`).remove();
-            
-            if (tabId === activeTabId) {
-                const remainingTab = $('.wprrt-tab-header').last();
-                if (remainingTab.length) {
-                    switchTab(remainingTab.data('tab-id'));
-                }
+
+            if (tabId === WPRRT.activeTabId) {
+                const remaining = $('.wprrt-tab-header').last();
+                if (remaining.length) switchTab(remaining.data('tab-id'));
             }
-            // If there are no tabs left, show placeholder container
+
             if ($('.wprrt-tab-header').length === 0) {
-                // Reset counters and state when no tabs remain
-                tabCounter = 0;
-                activeTabId = null;
+                WPRRT.tabCounter  = 0;
+                WPRRT.activeTabId = null;
                 clearState();
-                $('.wprrt-tab-content-wrapper').html(`
-                    <div class="wprrt-empty">
-                        <div class="wprrt-empty-inner">
-                            <div class="wprrt-empty-icon">🗂️</div>
-                            <h3>No requests yet</h3>
-                            <p>Create a new request to get started.</p>
-                            <button class="wprrt-add-tab">+ New Request</button>
-                        </div>
-                    </div>
-                `);
+                $('.wprrt-tab-content-wrapper').html(
+                    '<div class="wprrt-empty">' +
+                        '<div class="wprrt-empty-inner">' +
+                            '<div class="wprrt-empty-icon">🗂️</div>' +
+                            '<h3>No requests yet</h3>' +
+                            '<p>Create a new request to get started.</p>' +
+                            '<button class="wprrt-add-tab">+ New Request</button>' +
+                        '</div>' +
+                    '</div>'
+                );
             }
             saveState();
         });
 
-        // Handle route input and dropdown for each tab
+        // Route dropdown — focus
         $(document).on('focus', '.wprrt-route', function() {
-            const tabContent = $(this).closest('.wprrt-tab-content');
-            const dropdown = tabContent.find('.wprrt-route-dropdown');
-            const pluginSelect = tabContent.find('.wprrt-plugin');
-            
-            dropdown.empty();
-            const selectedPlugin = pluginSelect.val();
-            
-            let routesToShow = [];
-            if (selectedPlugin === 'all') {
-                routesToShow = Object.keys(formattedRoutes);
-            } else {
-                routesToShow = pluginRoutes[selectedPlugin] || [];
-            }
+            const tabContent     = $(this).closest('.wprrt-tab-content');
+            const dropdown       = tabContent.find('.wprrt-route-dropdown');
+            const selectedPlugin = tabContent.find('.wprrt-plugin').val();
 
-            routesToShow.forEach(route => {
-                dropdown.append(`<div class="wprrt-route-option" style="padding: 5px; cursor: pointer;">${route}</div>`);
-            });
+            const routes = selectedPlugin === 'all'
+                ? Object.keys(WPRRT.formattedRoutes)
+                : (WPRRT.pluginRoutes[selectedPlugin] || []);
+
+            buildRouteDropdown(dropdown, routes);
             dropdown.show();
         });
 
-        // Close dropdown when clicking outside
+        // Route dropdown — filter on input
+        $(document).on('input', '.wprrt-route', function() {
+            const value          = $(this).val().toLowerCase();
+            const tabContent     = $(this).closest('.wprrt-tab-content');
+            const dropdown       = tabContent.find('.wprrt-route-dropdown');
+            const selectedPlugin = tabContent.find('.wprrt-plugin').val();
+
+            const routes = (selectedPlugin === 'all'
+                ? Object.keys(WPRRT.formattedRoutes)
+                : (WPRRT.pluginRoutes[selectedPlugin] || [])
+            ).filter(r => r.toLowerCase().includes(value));
+
+            buildRouteDropdown(dropdown, routes);
+            dropdown.show();
+        });
+
+        // Close dropdown on outside click
         $(document).on('click', function(e) {
             if (!$(e.target).closest('.wprrt-route-container').length) {
                 $('.wprrt-route-dropdown').hide();
             }
         });
 
-        $(document).on('input', '.wprrt-route', function() {
-            const value = $(this).val().toLowerCase();
-            const tabContent = $(this).closest('.wprrt-tab-content');
-            const dropdown = tabContent.find('.wprrt-route-dropdown');
-            const pluginSelect = tabContent.find('.wprrt-plugin');
-            
-            dropdown.empty();
-            const selectedPlugin = pluginSelect.val();
-            
-            let routesToShow = [];
-            if (selectedPlugin === 'all') {
-                routesToShow = Object.keys(formattedRoutes);
-            } else {
-                routesToShow = pluginRoutes[selectedPlugin] || [];
-            }
-
-            routesToShow.forEach(route => {
-                if (route.toLowerCase().includes(value)) {
-                    dropdown.append(`<div class="wprrt-route-option" style="padding: 5px; cursor: pointer;">${route}</div>`);
-                }
-            });
-            dropdown.show();
-        });
-
+        // Select route from dropdown
         $(document).on('click', '.wprrt-route-option', function() {
-            const tabContent = $(this).closest('.wprrt-tab-content');
-            const routeInput = tabContent.find('.wprrt-route');
+            const tabContent  = $(this).closest('.wprrt-tab-content');
+            const routeInput  = tabContent.find('.wprrt-route');
             const methodSelect = tabContent.find('.wprrt-method');
-            const selectedRoute = $(this).text();
-            
+            const selectedRoute = $(this).text(); // .text() — safe read
+
             routeInput.val(selectedRoute);
             $(this).closest('.wprrt-route-dropdown').hide();
-            
-            // Auto-select the primary method for the selected route
-            if (routeMethods[selectedRoute]) {
-                const primaryMethod = routeMethods[selectedRoute].primary_method;
-                methodSelect.val(primaryMethod);
+
+            if (WPRRT.routeMethods[selectedRoute]) {
+                methodSelect.val(WPRRT.routeMethods[selectedRoute].primary_method);
             }
         });
 
+        // Clear route input when plugin filter changes
         $(document).on('change', '.wprrt-plugin', function() {
-            const tabContent = $(this).closest('.wprrt-tab-content');
-            const routeInput = tabContent.find('.wprrt-route');
-            routeInput.val('');
+            $(this).closest('.wprrt-tab-content').find('.wprrt-route').val('');
         });
 
-        // Handle new tab creation
+        // New tab button
         $(document).on('click', '.wprrt-add-tab', function() {
             createNewTab();
         });
     }
 
-    // Show initial loading state
+    // -------------------------------------------------------------------------
+    // Boot — load routes
+    // -------------------------------------------------------------------------
+
     showLoadingState();
 
-    // Initial load of routes
     $.post(wprrt_vars.ajax_url, {
         action: 'wprrt_get_routes',
         nonce: wprrt_vars.nonce
@@ -488,6 +471,6 @@ jQuery(document).ready(function($) {
         if (res.success) initializeApp(res.data);
         else showErrorState('Failed to load routes. Please refresh the page.');
     }).fail(() => {
-        showErrorState('Failed to connect to the server. Please check your connection and refresh the page.');
+        showErrorState('Failed to connect to the server. Please check your connection and refresh.');
     });
 });
