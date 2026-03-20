@@ -2,6 +2,221 @@
     font-family: Arial, sans-serif;
     margin-top: 20px;
 }
+
+/* -------------------------------------------------------------------------
+   Two-column layout — sidebar + main
+   ------------------------------------------------------------------------- */
+.wprrt-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+}
+
+/* Sidebar */
+.wprrt-sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    margin-right: 16px;
+    overflow: hidden;
+}
+
+.wprrt-sidebar-header {
+    padding: 10px 14px;
+    font-weight: bold;
+    font-size: 13px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #ddd;
+    color: #1d2327;
+}
+
+#wprrt-saved-list {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+}
+
+/* Saved request items */
+.wprrt-saved-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    gap: 6px;
+}
+
+.wprrt-saved-item:last-child {
+    border-bottom: none;
+}
+
+.wprrt-saved-item:hover {
+    background: #f0f6fc;
+}
+
+.wprrt-saved-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.wprrt-saved-method {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.wprrt-saved-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1d2327;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wprrt-saved-route {
+    font-size: 11px;
+    color: #646970;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wprrt-saved-delete {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.wprrt-saved-delete:hover {
+    color: #d63638;
+}
+
+.wprrt-saved-empty {
+    padding: 16px 14px;
+    color: #646970;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* Main content area */
+.wprrt-main {
+    flex: 1;
+    min-width: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Auth preset dropdown
+   ------------------------------------------------------------------------- */
+.wprrt-auth-label {
+    display: flex;
+    flex-direction: column;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.wprrt-auth-type {
+    margin-top: 4px;
+    padding: 6px 8px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    width: 100%;
+}
+
+/* -------------------------------------------------------------------------
+   Save request form
+   ------------------------------------------------------------------------- */
+.wprrt-form-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.wprrt-form-actions .wprrt-test {
+    flex: 1;
+}
+
+.wprrt-save-btn {
+    padding: 10px 16px;
+    background: #f6f7f7;
+    color: #2271b1;
+    border: 1px solid #2271b1;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.wprrt-save-btn:hover {
+    background: #f0f6fc;
+}
+
+.wprrt-save-form {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    background: #f6f7f7;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.wprrt-save-name {
+    padding: 7px 10px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.wprrt-save-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.wprrt-save-confirm {
+    padding: 6px 14px;
+    background: #2271b1;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.wprrt-save-confirm:hover {
+    background: #135e96;
+}
+
+.wprrt-save-cancel {
+    padding: 6px 14px;
+    background: none;
+    color: #646970;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.wprrt-save-cancel:hover {
+    background: #f0f0f0;
+}
 .wprrt-container {
     display: flex;
     gap: 20px;
@@ -211,6 +426,70 @@
     opacity: 0.8;
 }
 
+/* Response meta row: status badge + timing */
+.wprrt-response-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.wprrt-status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: bold;
+    font-family: monospace;
+    letter-spacing: 0.03em;
+}
+
+.wprrt-status-2xx { background: #d1fae5; color: #065f46; }
+.wprrt-status-3xx { background: #dbeafe; color: #1e3a8a; }
+.wprrt-status-4xx { background: #fef3c7; color: #92400e; }
+.wprrt-status-5xx { background: #fee2e2; color: #7f1d1d; }
+.wprrt-status-error { background: #f3f4f6; color: #374151; }
+
+.wprrt-response-time {
+    font-size: 12px;
+    color: #888;
+    font-family: monospace;
+}
+
+/* Collapsible response headers */
+.wprrt-response-headers {
+    margin-bottom: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.wprrt-response-headers summary {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+    cursor: pointer;
+    background: #f9fafb;
+    user-select: none;
+}
+
+.wprrt-response-headers summary:hover {
+    background: #f3f4f6;
+}
+
+.wprrt-response-headers .wprrt-headers-body {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #374151;
+}
+
 /* Route dropdown styling */
 .wprrt-route-dropdown {
     background: white;
@@ -236,4 +515,100 @@
 
 .wprrt-route-option:last-child {
     border-bottom: none;
+}
+
+/* -------------------------------------------------------------------------
+   URL parameter inputs
+   ------------------------------------------------------------------------- */
+.wprrt-params-container {
+    margin-top: 6px;
+}
+
+.wprrt-params-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+}
+
+.wprrt-param-label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-weight: normal;
+    font-size: 13px;
+}
+
+.wprrt-param-name {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 11px;
+    color: #2271b1;
+    font-weight: bold;
+}
+
+.wprrt-param-input {
+    padding: 5px 8px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    margin-top: 0;
+}
+
+.wprrt-param-input:focus {
+    border-color: #2271b1;
+    outline: none;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+/* cURL copy button — sits alongside Send in the form actions row */
+.wprrt-curl-btn {
+    padding: 10px 16px;
+    background: #f6f7f7;
+    color: #1d2327;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.wprrt-curl-btn:hover {
+    background: #f0f0f0;
+    border-color: #999;
+}
+
+/* -------------------------------------------------------------------------
+   PrismJS syntax highlighting — GitHub-flavoured light theme
+   Applied to .wprrt-response.language-json
+   ------------------------------------------------------------------------- */
+.wprrt-response.language-json {
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    color: #24292e;
+}
+
+.wprrt-response .token.property {
+    color: #6f42c1; /* JSON keys — purple */
+}
+
+.wprrt-response .token.string {
+    color: #032f62; /* string values — dark blue */
+}
+
+.wprrt-response .token.number {
+    color: #005cc5; /* numbers — blue */
+}
+
+.wprrt-response .token.boolean,
+.wprrt-response .token.null.keyword {
+    color: #d73a49; /* true / false / null — red */
+}
+
+.wprrt-response .token.punctuation,
+.wprrt-response .token.operator {
+    color: #6a737d; /* brackets, colons — grey */
 }

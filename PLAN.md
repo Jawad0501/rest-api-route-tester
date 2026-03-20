@@ -30,7 +30,7 @@ rest-api-route-tester/
 
 ---
 
-## v1.0.1 — Security Hotfixes
+## v1.1.0 — Security Hotfixes
 **No build system. Pure PHP + vanilla JS edits.**
 
 ### PHP (`rest-api-route-tester.php`)
@@ -99,27 +99,89 @@ npm run build  # production build → assets/app.js
 ---
 
 ## v1.3.0 — Saved Requests + Auth Presets
-**Build system required. New PHP includes file.**
+**Build system required (`npm run build`).**
 
-### New PHP: `includes/class-saved-requests.php`
-- `save_request( $user_id, $name, $data )` — stores to `wp_usermeta` key `wprrt_saved_requests`
-- `get_requests( $user_id )` — returns array of saved requests
-- `delete_request( $user_id, $id )` — removes by ID
-- Register 3 new AJAX actions: `wprrt_save_request`, `wprrt_get_saved_requests`, `wprrt_delete_request`
+### Layout change
+`initializeApp()` in `main.js` gains a two-column wrapper:
+```
+┌─────────────────────┬──────────────────────────────────────┐
+│  Saved Requests     │  [Tabs]                              │
+│  ─────────────────  │  ┌──────────────┬───────────────┐   │
+│  GET  /wp/v2/posts  │  │ Form         │ Response       │   │
+│  POST /wp/v2/posts  │  │              │                │   │
+│  [+ Save]           │  └──────────────┴───────────────┘   │
+└─────────────────────┴──────────────────────────────────────┘
+```
+- Sidebar: fixed 240px, scrollable, sits left of `.wprrt-main`
+- All existing tab machinery stays in `.wprrt-main` — no tab code changes
 
-### Frontend: `src/saved.js`
-- Left-sidebar panel: "Saved Requests" list, loads on init
-- "Save" button per tab — prompts for a name, POSTs to new handler
-- Click a saved request → populates the active tab's route/method/headers/body
-- Delete button per saved item
+### PHP — `includes/class-saved-requests.php` (new file)
+```
+WPRRT_Saved_Requests
+  ::save( $user_id, $name, $route, $method, $headers, $body ) → id
+  ::get_all( $user_id ) → array
+  ::delete( $user_id, $id ) → bool
+```
+- Storage: single `wp_usermeta` key `wprrt_saved_requests` per user, value = JSON array
+- Each item: `{ id, name, route, method, headers, body, saved_at }`
+- `id` = `uniqid('wprrt_', true)` — no DB table needed
+- Max 100 saved requests per user — oldest dropped silently when limit hit
 
-### Auth presets: `src/auth.js`
-- Dropdown above the Headers textarea: "No Auth | Bearer Token | API Key | Basic Auth"
-- Selecting a type auto-injects the appropriate header template into the Headers JSON field
-- Preset values stored in `localStorage` under `wprrt_auth_presets`
+AJAX actions registered in `rest-api-route-tester.php`:
+- `wprrt_save_request` — nonce + `manage_options`, calls `::save()`
+- `wprrt_get_saved_requests` — nonce + `manage_options`, calls `::get_all()`
+- `wprrt_delete_request` — nonce + `manage_options`, calls `::delete()`
+
+### JS — `src/saved.js` (new file)
+Responsibilities:
+- `initSidebar()` — renders sidebar shell, calls `loadSaved()`
+- `loadSaved()` — AJAX `wprrt_get_saved_requests` → renders list
+- `renderSavedList( items )` — for each item: name, method badge, route, delete button
+  - Click item → `populateTab( item )` on the currently active tab
+  - Click delete → AJAX `wprrt_delete_request`, re-render list
+- `saveCurrentTab( tabContent )` — triggered by "Save" button
+  - Shows inline name input below Send button (not `window.prompt`)
+  - On confirm: AJAX `wprrt_save_request`, re-renders list, hides input
+- Empty state: "No saved requests yet" with a hint
+
+Exports: `initSidebar`, `saveCurrentTab`
+
+### JS — `src/auth.js` (new file)
+A `<select>` inserted above the Headers textarea in each new tab (added in `tabs.js`):
+```
+Auth:  [ No Auth ▾ ]
+```
+Options and what they inject into the Headers field:
+| Option | Injected JSON |
+|---|---|
+| No Auth | clears auth headers only |
+| Bearer Token | `{"Authorization": "Bearer YOUR_TOKEN"}` |
+| API Key | `{"X-API-Key": "YOUR_KEY"}` |
+| Basic Auth | `{"Authorization": "Basic YOUR_BASE64"}` |
+
+- Merge strategy: inject into existing headers object, don't overwrite unrelated keys
+- Token values are placeholders — user edits them in place
+- Last-used auth type per tab persisted in `localStorage` as part of tab state
+
+Exports: `initAuthDropdown( tabContent )`
+
+### Files touched
+| File | Change |
+|---|---|
+| `includes/class-saved-requests.php` | **New** |
+| `rest-api-route-tester.php` | `require_once` + 3 AJAX hooks |
+| `src/saved.js` | **New** |
+| `src/auth.js` | **New** |
+| `src/tabs.js` | Add auth dropdown + Save button to tab HTML; call `initAuthDropdown()` |
+| `src/main.js` | Layout change + call `initSidebar()` on boot |
+| `assets/style.css` | Sidebar layout, saved item styles, method badge colours, auth dropdown |
 
 ### Visible output
-Sidebar with saved requests. Auth preset dropdown auto-fills the headers field.
+- Left sidebar appears with "Saved Requests" heading and empty state
+- Auth preset dropdown in every tab above Headers
+- Save button below Send → inline name input → confirm → item appears in sidebar
+- Click a saved item → fills active tab's route/method/headers/body instantly
+- Delete button removes item from sidebar without page reload
 
 ---
 
@@ -219,7 +281,7 @@ History tab fills up as you make requests. One-click restore into a new tab.
 
 | Version | Theme | Build? | Key Deliverable |
 |---|---|---|---|
-| **v1.0.1** | Security | No | XSS fix, user cleanup, route validation |
+| **v1.1.0** | Security | No | XSS fix, user cleanup, route validation |
 | **v1.1.0** | Bug fixes | No | Status badge, response headers, timing display |
 | **v1.2.0** | Architecture | **Yes** | Vite build, modular JS, syntax highlighting |
 | **v1.3.0** | Persistence | Yes | Saved requests, auth presets sidebar |
