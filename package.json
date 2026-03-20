@@ -1,0 +1,15 @@
+{
+  "name": "rest-api-route-tester",
+  "version": "1.4.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "prismjs": "^1.29.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

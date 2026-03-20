@@ -1,0 +1,113 @@
+# REST API Route Tester — Release 1.4.1 Plan
+
+## Goals
+
+- Ship a **hotfix release** `1.4.1` that fixes **role-based REST testing** so permission checks run as the selected role (or guest), not as the admin running the tool.
+- Add **Guest (logged-out)** as an explicit role option for testing public vs authenticated routes.
+- Restore **original user context** after each test request so admin session state does not leak.
+- Update **version metadata**, **changelog**, and **WordPress.org SVN** (`trunk` + `tags/1.4.1`) in a single coherent release.
+- Communicate briefly on the support forum: what changed + ask for regression reports.
+
+## Non-goals
+
+- No new features beyond role/guest correctness and documentation (no history, collections, or UI redesign in this release).
+- No change to WordPress.org plugin review policy (no activation of other plugins, etc.).
+- No dependency on a separate Git hosting workflow for the hotfix release itself (optional Git/GitHub can follow).
+
+## Architecture overview
+
+### Problem
+
+`rest_do_request()` runs in the admin AJAX context. `wp_set_current_user()` alone does not always align REST authentication with the intended test user, because `determine_current_user` and capability checks can still resolve against the logged-in admin.
+
+### Solution (implemented in `rest-api-route-tester.php`)
+
+- During `test_route()` when a role is selected:
+  - Store **original user ID**.
+  - For **guest**: set `force_guest_user`, force `determine_current_user` to return `0`, `wp_set_current_user(0)`.
+  - For **named roles**: create temporary user, set `forced_user_id`, add high-priority `determine_current_user` filter, add `user_has_cap` filter to align capability checks with the test user, then `wp_set_current_user`.
+- In `finally`:
+  - Remove filters, reset internal flags, **restore** `wp_set_current_user($original_user_id)`, delete temporary test user when applicable.
+
+### Files involved
+
+- `rest-api-route-tester.php` — main logic, version constant in `enqueue_scripts`.
+- `readme.txt` — `Stable tag`, `= 1.4.1 =` changelog, optional upgrade notice.
+- `README.md` / `package.json` — version alignment for repo consistency.
+
+## API compatibility notes
+
+- **AJAX actions unchanged** (`wprrt_test_route`, etc.).
+- **POST payload**: `role` may accept empty string (default), `guest`, or a registered role slug.
+- **Response shape** unchanged (`status`, `headers`, `data`); no breaking JSON contract for the admin UI.
+- Sites relying on previous behavior where admin privileges leaked into role tests should treat that as **bugfix**, not regression.
+
+## File-by-file change list
+
+| Path | Change |
+|------|--------|
+| `rest-api-route-tester.php` | Bump `Version` header and `$version` in `enqueue_scripts` to `1.4.1`. Confirm guest + role filters and `finally` cleanup. |
+| `readme.txt` | `Stable tag: 1.4.1`. Add `= 1.4.1 =` changelog. Optional `== Upgrade Notice ==` for `1.4.1`. |
+| `README.md` | Version / Stable Tag lines; `### 1.4.1` changelog section. |
+| `package.json` | `"version": "1.4.1"`. |
+| `RELEASE_NOTES_1.4.0.md` | Optional: add `RELEASE_NOTES_1.4.1.md` or extend notes (not required for WP.org). |
+
+## PR breakdown
+
+1. **Code freeze review** — Re-read `test_route()` path: no `return` before `finally` without cleanup (verify `wp_send_json_*` paths still run cleanup via existing structure).
+2. **Version bump** — Single commit: PHP header + enqueue version + readme + README + package.json.
+3. **QA** — Manual matrix (see Test plan).
+4. **SVN** — `svn up` → rsync to `trunk` (exclude dev dirs) → `svn commit` → `svn copy ^/rest-api-route-tester/trunk ^/rest-api-route-tester/tags/1.4.1 -m "Tagging 1.4.1"`.
+5. **Comms** — Short support forum reply or new topic: “1.4.1 hotfix — role testing accuracy”.
+
+## Test plan
+
+### Regression (must pass)
+
+- **Default (current user)**: Admin can still test routes as themselves.
+- **Subscriber** (or low role): `GET /wp/v2/users` may return limited public list; `GET /wp/v2/users?context=edit` should **fail** (401/403).
+- **Guest**: Same as above for public vs `context=edit`.
+- **Admin-only route**: With subscriber/guest, expect **denied**; with admin default, expect allowed where applicable.
+- **FluentCart / custom plugin**: Re-test a route that should require shop/customer capability — response should match role.
+- **After request**: Admin UI remains responsive; no stuck “wrong user” state (refresh another admin action).
+
+### Smoke
+
+- Saved requests, cURL, param inputs still work (no JS changes unless needed).
+
+### Negative
+
+- Invalid role slug → still `wp_send_json_error` from `create_test_user` path.
+
+## Migration / backfill plan
+
+- No database migration.
+- Users on `1.4.0` should update to `1.4.1` for correct role-testing behavior; previous “role test” results may have been **trusted incorrectly** — note in changelog.
+- No automatic data backfill.
+
+## SVN release checklist (copy-paste)
+
+1. `npm run build` (if any JS touched; for PHP-only hotfix, skip if unchanged).
+2. `rsync` from dev plugin to `trunk` with excludes: `node_modules`, `.git`, `.cursor`, `*.mdc`, planning docs, `*.zip`.
+3. `svn status` → add/remove as needed.
+4. `svn commit -m "Release 1.4.1"` on `trunk`.
+5. `svn copy ^/rest-api-route-tester/trunk ^/rest-api-route-tester/tags/1.4.1 -m "Tagging version 1.4.1"`.
+6. Verify plugin page shows `1.4.1` after propagation.
+
+## Suggested changelog copy (readme.txt)
+
+```
+= 1.4.1 =
+* Fixed role-based testing: REST permission checks now evaluate as the selected role (or guest), not the logged-in administrator
+* Added Guest (logged-out user) option for testing public vs authenticated routes
+* Restored original user context after each test request
+```
+
+## Next actions
+
+- [x] Bump all version strings to `1.4.1`.
+- [ ] Run full QA matrix above (manual, on your staging site).
+- [ ] Commit to SVN `trunk` and tag `1.4.1`.
+- [ ] Post short support forum note.
+
+**Repo status:** Version bumps and changelog applied in working copy; SVN push is on your machine.

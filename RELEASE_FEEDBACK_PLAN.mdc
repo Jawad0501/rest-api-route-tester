@@ -1,0 +1,219 @@
+# Rest API Route Tester Release + Feedback Plan
+
+## Goals
+- Run a predictable release cadence for `rest-api-route-tester` on WordPress.org.
+- Establish reliable user feedback channels without a separate website.
+- Increase user trust through clear release notes, support responsiveness, and issue follow-up.
+- Collect actionable product feedback from current users (40+) and future adopters.
+- Convert feedback into prioritized, visible roadmap decisions.
+
+## Non-goals
+- Building a standalone SaaS support portal.
+- Adding invasive analytics or tracking without explicit user consent.
+- Large feature rewrites unrelated to usability, reliability, or support quality.
+- Managing community channels that require full-time moderation from day one.
+
+## Architecture overview
+- **Primary user touchpoints**
+  - WordPress.org plugin page (description, FAQ, changelog).
+  - WordPress.org support forum for the plugin.
+  - In-plugin admin UX messages (release highlights, feedback CTA, quick links).
+  - GitHub issue tracker (optional secondary channel for power users).
+- **Feedback intake flow**
+  - User submits feedback from:
+    - WordPress.org support topic.
+    - In-plugin "Send feedback" link (opens support forum "new topic").
+    - GitHub issue (if enabled).
+  - Maintainer triages feedback into buckets:
+    - Bug.
+    - UX pain.
+    - Feature request.
+    - Docs/support confusion.
+  - Items are moved into release backlog and tagged by severity + impact.
+- **Release communication flow**
+  - Prepare release notes and FAQ updates.
+  - Publish plugin update on WordPress.org.
+  - Post "what changed + what we need feedback on" in support forum.
+  - Add in-plugin "What's new" notice for one version cycle.
+
+## API compatibility notes
+- No public API-breaking changes in this plan; focus is release process and communication.
+- If any endpoint behavior changes in future feature releases, mark as:
+  - Backward-compatible enhancement, or
+  - Breaking change requiring major version bump and migration notes.
+- Preserve existing request-testing behavior for supported methods (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`).
+- Document compatibility expectations in `README.md` and plugin `readme.txt` consistently.
+
+## File-by-file change list (with concrete paths)
+- `rest-api-route-tester/readme.txt`
+  - Rewrite short/long description to emphasize admin-native REST testing workflow.
+  - Add "Support" section that directs users to WordPress.org support forum.
+  - Expand FAQ:
+    - "How do I report bugs?"
+    - "How do I request features?"
+    - "Can I use this on production?"
+  - Keep changelog concise and user-facing.
+- `rest-api-route-tester/README.md`
+  - Align with `readme.txt` language and support links.
+  - Add "Feedback channels" and "How to provide reproducible reports" section.
+  - Add issue template guidance for bug reports (steps, expected vs actual, WP/PHP versions).
+- `rest-api-route-tester/rest-api-route-tester.php`
+  - Add a non-intrusive admin notice for one-time "What's new + feedback link" after updates.
+  - Add an admin page footer/link area: "Need help? Report issue / Request feature".
+  - Ensure capability checks and nonce handling for any dismissal action.
+- `rest-api-route-tester/templates/admin-page.php` (or equivalent admin template file)
+  - Add visible support + feedback links near response panel.
+  - Add minimal "Report a bug" CTA with contextual copy.
+- `rest-api-route-tester/assets/style.css`
+  - Style feedback CTA and release notice so they are discoverable but unobtrusive.
+- `rest-api-route-tester/languages/*` (if i18n is in use)
+  - Add translatable strings for support/feedback CTAs and release notice copy.
+
+## PR breakdown
+- **PR 1: WordPress.org listing and docs hardening**
+  - Update `readme.txt` and `README.md`.
+  - Add support workflow, FAQ, and feedback instructions.
+  - Output: users know exactly where/how to ask questions.
+- **PR 2: In-plugin feedback entry points**
+  - Add help/feedback links in admin UI and optional post-update notice.
+  - Add secure dismissal handling (nonce + capability checks).
+  - Output: active users can provide feedback in 1 click.
+- **PR 3: Triage workflow + maintainer playbook**
+  - Add `SUPPORT.md` (or section in `README.md`) for response SLAs, labels, and escalation rules.
+  - Define bug reproduction checklist and release gate criteria.
+  - Output: consistent support quality and faster issue turnaround.
+- **PR 4: Release cadence + announcement templates**
+  - Add release checklist doc and reusable announcement template.
+  - Include "What changed / Known issues / Feedback request".
+  - Output: repeatable release process with user outreach each cycle.
+
+## Test plan
+- **Pre-release checks**
+  - Validate plugin activation and admin screen load on clean WordPress install.
+  - Verify all support/feedback links resolve correctly.
+  - Confirm notice appears only when intended and dismisses correctly.
+  - Validate nonce/capability checks for any setting/action introduced.
+- **Cross-environment checks**
+  - WordPress versions: minimum supported, latest stable.
+  - PHP versions: minimum supported, one modern version.
+  - Multisite smoke check if plugin supports network contexts.
+- **UX validation**
+  - Ensure feedback CTA is visible without disrupting request testing workflow.
+  - Confirm copy is clear and avoids ambiguity about support channel.
+- **Post-release validation (first 14 days)**
+  - Measure support topic volume and first-response time.
+  - Track recurring issue categories and confusion hotspots.
+  - Capture top 5 requested improvements for next release planning.
+
+## Migration / backfill plan
+- **Content backfill**
+  - Audit old support threads; extract recurring pain points into FAQ updates.
+  - Summarize historical issues into a "Known issues and workarounds" section.
+- **Process backfill**
+  - Label existing open requests into standardized categories.
+  - Build initial backlog from historic requests (high/medium/low impact).
+- **Release backfill**
+  - Reformat last 3 changelog entries into clearer user-facing language.
+  - Add a "Since 1.0.0" highlights section to reduce duplicate support questions.
+- **Operational cadence**
+  - Weekly: support triage and forum responses.
+  - Biweekly: backlog grooming based on user feedback trends.
+  - Monthly: release train (patch or minor) with explicit feedback call.
+
+## 60-day execution timeline
+- **Week 1**
+  - Finalize docs updates (`readme.txt`, `README.md`).
+  - Draft support response templates (bug request, feature request, resolved).
+- **Week 2**
+  - Ship in-plugin feedback links + update notice.
+  - Publish WordPress.org support "How to get help" pinned topic.
+- **Week 3-4**
+  - Triaging sprint: close low-quality reports with clear repro requests.
+  - Convert top repeated pain points into quick fixes or docs.
+- **Week 5-6**
+  - Ship first feedback-driven patch release.
+  - Announce "You asked, we shipped" items in changelog and support forum.
+- **Week 7-8**
+  - Evaluate response metrics and backlog quality.
+  - Plan next minor release with 2-3 high-impact UX improvements.
+
+## Feedback quality rubric
+- **High quality**
+  - Includes WP version, PHP version, exact route, method, headers/body sample, expected vs actual.
+- **Medium quality**
+  - Has symptom and rough context but missing reproducible steps.
+- **Low quality**
+  - Vague statement without environment details or reproduction hints.
+
+Use this rubric to prioritize triage effort and request missing details quickly.
+
+## Success metrics
+- First support response median time under 48 hours.
+- At least 30% of new support topics receive maintainer follow-up within 72 hours.
+- At least 1 feedback-driven release within 60 days.
+- Reduction in repeated "how do I..." questions after FAQ refresh.
+- Increased positive support sentiment ("solved" topics and thank-you feedback).
+
+## Tomorrow release sprint (24-hour fast track)
+
+### T-24h to T-12h: freeze + verification
+- Freeze scope: only ship already completed `1.4.0` features and bug fixes.
+- Confirm version alignment in:
+  - `rest-api-route-tester.php`
+  - `readme.txt`
+  - `README.md`
+  - `package.json`
+- Build production assets:
+  - `npm run build`
+- Quick manual QA (must pass):
+  - Route selection and param interpolation.
+  - All HTTP methods execute correctly.
+  - cURL export copies expected command.
+  - Saved request restore and delete workflow.
+  - Invalid JSON path shows clean error state.
+
+### T-12h to T-4h: release packaging
+- Finalize WordPress.org `readme.txt` sections:
+  - Short description.
+  - Changelog (`= 1.4.0 =`).
+  - FAQ entry: "How do I report bugs and request features?"
+- Create concise release notes (copy-paste template):
+  - What's new (3-5 bullets).
+  - Fixes (2-4 bullets).
+  - Ask for feedback with direct support forum link.
+- Prepare fallback hotfix window:
+  - Reserve `1.4.1` for rapid patch if critical issue appears.
+
+### T-4h to T0: publish + outreach
+- Deploy to WordPress.org plugin SVN as `1.4.0`.
+- Post a pinned support topic:
+  - "1.4.0 released — need your feedback"
+  - Include:
+    - Target users (current active testers).
+    - 3 specific feedback questions.
+    - Request for reproducible bug reports.
+- Add/update in-plugin CTA copy to direct users to support forum.
+
+### T+0 to T+48h: feedback capture loop
+- Check support forum twice daily.
+- Response SLA for first reply: <= 24h for first 48h.
+- Tag incoming reports into:
+  - bug
+  - UX friction
+  - feature request
+  - docs confusion
+- Publish a short "Known issues" reply if patterns emerge.
+- Build a prioritized shortlist for `1.4.1` (critical) and `1.5.0` (improvements).
+
+## Copy templates for tomorrow
+
+### Release note headline
+`REST API Route Tester 1.4.0 is live: URL params + cURL export + route matching improvements`
+
+### Support topic title
+`1.4.0 feedback thread: what worked, what broke, what you need next`
+
+### Three feedback prompts
+- Which endpoint type do you test most (core, custom plugin, headless workflows)?
+- Did URL parameter inputs reduce manual editing errors?
+- What should be the next top feature: history, import/export, or auth improvements?
