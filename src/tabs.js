@@ -87,12 +87,12 @@ export function createNewTab(tabData) {
         `<div class="wprrt-form">` +
           `<label>Role:<select class="wprrt-role-selector"></select></label>` +
           `<label>Plugin:` +
-            `<select class="wprrt-plugin" style="width:100%;margin-bottom:10px;"></select>` +
+            `<select class="wprrt-plugin"></select>` +
           `</label>` +
           `<label>Route:` +
-            `<div class="wprrt-route-container" style="position:relative;">` +
-              `<input type="text" class="wprrt-route" placeholder="Enter or select a route" style="width:100%;">` +
-              `<div class="wprrt-route-dropdown" style="display:none;position:absolute;width:100%;"></div>` +
+            `<div class="wprrt-route-container">` +
+              `<input type="text" class="wprrt-route" placeholder="Enter or select a route">` +
+              `<div class="wprrt-route-dropdown"></div>` +
             `</div>` +
           `</label>` +
           `<div class="wprrt-params-container"></div>` +
@@ -119,7 +119,7 @@ export function createNewTab(tabData) {
             `<button class="wprrt-curl-btn" type="button">Copy as cURL</button>` +
             `<button class="wprrt-save-btn" type="button">Save</button>` +
           `</div>` +
-          `<div class="wprrt-save-form" style="display:none;">` +
+          `<div class="wprrt-save-form">` +
             `<input type="text" class="wprrt-save-name" placeholder="Request name…" maxlength="80">` +
             `<div class="wprrt-save-actions">` +
               `<button class="wprrt-save-confirm" type="button">Save</button>` +
@@ -129,11 +129,11 @@ export function createNewTab(tabData) {
         `</div>` +
         `<div class="wprrt-response-block">` +
           `<h3>Response</h3>` +
-          `<div class="wprrt-response-meta" style="display:none;">` +
+          `<div class="wprrt-response-meta">` +
             `<span class="wprrt-status-badge"></span>` +
             `<span class="wprrt-response-time"></span>` +
           `</div>` +
-          `<details class="wprrt-response-headers" style="display:none;">` +
+          `<details class="wprrt-response-headers">` +
             `<summary>Response Headers (<span class="wprrt-header-count">0</span>)</summary>` +
             `<pre class="wprrt-headers-body"></pre>` +
           `</details>` +

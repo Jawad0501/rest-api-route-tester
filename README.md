@@ -1,9 +1,9 @@
 # Rest API Route Tester
-Version: 1.4.0
+Version: 1.4.1
 Author: Nowshad Jawad
 Requires at least: 4.5
 Tested up to: 6.9
-Stable Tag: 1.4.0
+Stable Tag: 1.4.1
 License: GPLv2 or later
 
 
@@ -75,6 +75,11 @@ A powerful WordPress plugin that provides a user-friendly interface to test Word
 
 
 ## Changelog
+
+### 1.4.1
+- Fixed role-based testing so REST permission checks run as the selected role or guest, not the admin session
+- Added Guest (logged-out user) option for testing public vs authenticated routes
+- Restored original user context after each test request
 
 ### 1.4.0
 - URL parameter detection — `{param}` tokens in a selected route render labeled input fields below the route field

@@ -1,0 +1,56 @@
+# REST API Route Tester — Modern UI Plan
+
+## Goals
+
+- Deliver a **modern, product-style** admin tool: clear hierarchy, breathable spacing, subtle depth (shadows), and a **contemporary type stack** (system UI + monospace for JSON/routes).
+- Use a **cohesive design token** layer (`#wprrt-app` CSS custom properties) for colors, radius, shadow, and typography so future tweaks are one place.
+- Keep **WordPress admin usable** (contrast, focus states, no broken wp-admin layout) while **not** limiting the UI to “default gray boxes only.”
+- **Responsive**: sidebar + two-column tab body stack cleanly under ~960px.
+- **Polish**: primary/secondary/ghost button roles, elevated route dropdown, card-style response panel, refined tabs (pill / soft active state).
+- Follow with **inline-style removal** in `src/tabs.js` (classes only) in a second pass for maintainability.
+
+## Non-goals
+
+- New JS framework, design tool handoff, or illustration pack.
+- Full **dark mode** in this phase (tokens make it easier later).
+- Changing REST/AJAX behavior.
+
+## Architecture overview
+
+- **Visual language**: slate/neutral surfaces + **indigo/blue accent** (`--wprrt-accent`), large radius (`10–12px`), soft shadow on cards and dropdown.
+- **Typography**: `-apple-system, Segoe UI, Roboto…` for UI; `ui-monospace / SF Mono` for code.
+- **Structure**: unchanged DOM; styling is **`assets/style.css`** only for this phase.
+- **Scoped tokens**: all variables live on `#wprrt-app` so they do not leak into global wp-admin.
+
+## API compatibility notes
+
+- No PHP/JS API changes for pure CSS refresh.
+- Version bump `assets/style.css` via `rest-api-route-tester.php` `$version` when releasing.
+
+## File-by-file change list
+
+| Path | Changes |
+|------|---------|
+| `assets/style.css` | Token block; modern card/sidebar/tabs/form/response; responsive `@media`; `:focus-visible`. |
+| `readme.txt` / `README.md` | Changelog line “Modern UI refresh” when shipping. |
+| `src/tabs.js` | (Follow-up) Remove `style=` in favor of classes listed in this doc. |
+
+## PR breakdown
+
+1. **Modern CSS v1** — Tokens + component restyle (this deliverable).
+2. **Markup cleanup** — Replace inline styles in `tabs.js` with classes matching CSS.
+
+## Test plan
+
+- Desktop 1280px + 782px: layout, tabs, dropdown, response scroll.
+- Keyboard: focus rings visible on buttons and inputs.
+- Long JSON: response panel scroll unchanged.
+
+## Migration
+
+- None. Cache-bust via enqueued version.
+
+## Success criteria
+
+- UI reads as **intentionally modern** (not default Arial gray).
+- No functional regressions in testing flows.

@@ -41,7 +41,7 @@ export function renderResponse(tabContent, res, elapsed) {
 
     badgeEl.attr('class', 'wprrt-status-badge ' + cls).text(label ? `${status} ${label}` : status);
     timeEl.text(`${elapsed}ms`);
-    metaEl.show();
+    metaEl.show().css('display', 'flex');
 
     // Response headers — collapsible
     const hdrs    = res.data.headers || {};
@@ -66,7 +66,7 @@ export function renderResponse(tabContent, res, elapsed) {
   } else {
     badgeEl.attr('class', 'wprrt-status-badge wprrt-status-error').text('Error');
     timeEl.text(`${elapsed}ms`);
-    metaEl.show();
+    metaEl.show().css('display', 'flex');
     headersEl.hide();
     responseEl.removeClass('language-json').text(res.data || 'An error occurred.');
   }
@@ -76,7 +76,7 @@ export function renderRequestError(tabContent, elapsed) {
   const $ = window.jQuery;
   tabContent.find('.wprrt-status-badge').attr('class', 'wprrt-status-badge wprrt-status-error').text('Request Failed');
   tabContent.find('.wprrt-response-time').text(elapsed ? `${elapsed}ms` : '');
-  tabContent.find('.wprrt-response-meta').show();
+  tabContent.find('.wprrt-response-meta').show().css('display', 'flex');
   tabContent.find('.wprrt-response-headers').hide();
   tabContent.find('.wprrt-response').removeClass('language-json').text('Could not connect to the server. Please try again.');
 }

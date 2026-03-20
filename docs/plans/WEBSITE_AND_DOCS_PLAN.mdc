@@ -1,0 +1,86 @@
+# REST API Route Tester — website, developer docs, and API reference
+
+## Goals
+
+- Provide a **public home** for the plugin beyond the WordPress.org listing (clear value proposition, screenshots, changelog link, support links).
+- Publish **developer documentation**: local setup, build pipeline (Vite → `assets/`), PHP/JS layout, contribution guidelines, and release checklist.
+- Publish **integration / “API” documentation** for the plugin’s **admin-ajax surface** and **localized script data** (`wprrt_vars`), so extenders and security reviewers know the contract without reading source.
+- Keep **WordPress.org** as canonical for install/version/readme; the site and repo docs cross-link to it.
+
+## Non-goals
+
+- Exposing a **public REST API** for third parties (the plugin intentionally uses **private** `wp_ajax_*` handlers only).
+- Building a heavy CMS or custom backend for docs; prefer static site or Git-hosted markdown unless you explicitly want WordPress as the doc host.
+- Replacing `readme.txt` / plugin directory content; those remain required for .org distribution.
+
+## Architecture overview
+
+| Layer | Purpose | Suggested stack |
+|--------|---------|-----------------|
+| **Marketing site** | Landing, features, screenshots, FAQ, links to .org + GitHub + support | Static site on **GitHub Pages** (or Netlify/Vercel) from the same repo, or a single-page site in `docs/` |
+| **Developer docs** | Clone, `npm install`, `npm run build`, folder map, coding standards alignment with WP | Markdown in `docs/dev/` (or Docusaurus / VitePress if you want search and nav) |
+| **API reference** | Document `admin-ajax.php?action=wprrt_*` + POST fields + JSON shapes + caps/nonce | Markdown `docs/api/admin-ajax.md` (or OpenAPI-style YAML **only if** you later add REST routes) |
+
+**Information flow:** WordPress.org plugin page → “full docs” / GitHub → optional marketing domain CNAME to Pages.
+
+**Plugin header alignment:** Update `Plugin URI` in `rest-api-route-tester.php` to the chosen canonical URL once the site exists (keep .org as secondary or “Download” link on the site).
+
+## API compatibility notes
+
+- **Transport:** All server interactions from the admin UI use **`admin-ajax.php`** with `action` set to one of the `wprrt_*` values below.
+- **Authentication:** Every action expects POST data including `nonce` verified with `check_ajax_referer( 'wprrt_nonce', 'nonce' )` (same nonce as `wp_localize_script` → `wprrt_vars.nonce`).
+- **Capability:** `manage_options` is required for `test_route`, `save_request`, `get_saved_requests`, and `delete_request`. `get_routes` and `get_user_roles` are nonce-gated only (same as current implementation — document explicitly for security reviewers).
+- **Response format:** Handlers use `wp_send_json_success` / `wp_send_json_error` (WordPress AJAX envelope), not `WP_REST_Response`.
+- **Stability:** Treat POST parameter names and success payload shapes as **public for extenders** once documented; avoid breaking renames without a major version or deprecation note in `readme.txt`.
+
+### Admin-ajax actions (reference for docs)
+
+| Action | POST parameters (representative) | Success payload (high level) |
+|--------|----------------------------------|------------------------------|
+| `wprrt_get_routes` | `nonce` | Map of route → `{ methods, primary_method }` |
+| `wprrt_get_user_roles` | `nonce` | Map of role slug → label (includes `''`, `guest`) |
+| `wprrt_test_route` | `nonce`, `route`, `method`, `headers` (JSON string), `form` (JSON string), `body` (JSON string), `role` | `{ status, headers, data }` from `WP_REST_Response` |
+| `wprrt_save_request` | `nonce`, `name`, `route`, `method`, `headers`, `body` | Saved item array/object from `WPRRT_Saved_Requests::save` |
+| `wprrt_get_saved_requests` | `nonce` | List from `WPRRT_Saved_Requests::get_all` |
+| `wprrt_delete_request` | `nonce`, `id` | Empty success |
+
+### Localized globals (`wprrt_vars`)
+
+Document in API doc: `ajax_url`, `nonce`, `rest_url` — consumed by `assets/app.js` (built from `src/`).
+
+### Future optional hooks
+
+If you want **third-party extensibility**, add prefixed `apply_filters` / `do_action` in a later minor release and document them in `docs/api/hooks.md`; not required for the initial docs milestone.
+
+## File-by-file change list (concrete paths)
+
+| Path | Change |
+|------|--------|
+| `rest-api-route-tester.php` | After site URL exists: set `Plugin URI` to marketing or docs root; optionally add `Documentation` link in plugin row meta via `plugin_row_meta` filter. |
+| `README.md` | Add “Documentation” section with links to site + `docs/dev/` + `docs/api/`. |
+| `readme.txt` | Short “Documentation” subsection with same URLs (WP.org-safe, no tracking). |
+| `docs/dev/README.md` (new) | Prerequisites, install, `npm run build`, where built assets land, PHP entry points. |
+| `docs/dev/architecture.md` (new) | Mermaid or text diagram: admin page → localized JS → AJAX → `RESTAPIRouteTester` → `rest_do_request` / saved requests class. |
+| `docs/dev/contributing.md` (new) | PRs, coding standards (PHPCS if used), branch strategy. |
+| `docs/api/admin-ajax.md` (new) | Full parameter tables, error cases, body size limit (512 KB), role/guest testing behavior. |
+| `docs/index.md` or site `index.html` (new) | Landing content or redirect strategy. |
+| `.github/workflows/pages.yml` (new, optional) | Deploy `docs/site/` or `gh-pages` branch to GitHub Pages. |
+| `package.json` | Optional script `docs:dev` if using VitePress/Docusaurus in `docs/`. |
+
+## PR breakdown
+
+1. **PR1 — Docs skeleton:** Add `docs/dev/*`, `docs/api/admin-ajax.md`, root `README.md` / `readme.txt` links; no behavior change.
+2. **PR2 — Marketing shell:** Add minimal static site (or GitHub Pages workflow) + favicon + meta; point `Plugin URI` in a follow-up tag if you want release alignment.
+3. **PR3 — Polish:** Screenshots on site, FAQ, “Security model” page summarizing nonce + caps; optional `plugin_row_meta` doc link.
+
+## Test plan
+
+- Manually verify every documented AJAX action against a local WP install (logged-in admin): success and one failure path (bad nonce, missing field).
+- Confirm links in `readme.txt` open over HTTPS and are allowed on WordPress.org (no commercial-only gated content if linked from .org).
+- If using CI for Pages: verify build passes on `main` and deployed URLs match `Plugin URI`.
+
+## Migration / backfill plan
+
+- **No database migration** required.
+- **Backfill:** Copy useful sections from existing `README.md` / `PLAN.md` / release notes into `docs/dev/` so contributors have one entry point; keep historical plans in `docs/plans/` as-is.
+- **Versioning:** Tag doc milestones in git; optionally mention “docs updated as of x.y.z” in `docs/dev/README.md`.

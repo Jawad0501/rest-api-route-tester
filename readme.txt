@@ -3,7 +3,7 @@ Contributors: jawad0501
 Tags: rest-api, api, testing, developer-tools
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -48,6 +48,11 @@ Please open a topic in our WordPress.org support forum with:
 Support forum: https://wordpress.org/support/plugin/rest-api-route-tester/
 
 == Changelog ==
+
+= 1.4.1 =
+* Fixed role-based testing: REST permission checks now evaluate as the selected role or guest, not the logged-in administrator
+* Added Guest (logged-out user) option for testing public vs authenticated routes
+* Restored original user context and removed temporary filters after each test request
 
 = 1.4.0 =
 * Added URL parameter inputs for routes containing tokens such as `{id}`
@@ -94,6 +99,9 @@ Support forum: https://wordpress.org/support/plugin/rest-api-route-tester/
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.4.1 =
+Hotfix: correct role and guest simulation for REST permission checks. Recommended if you use role-based route testing.
 
 = 1.1.0 =
 Security release. Fixes XSS in route dropdown, orphaned test user leak, and missing input validation. Upgrade recommended.

@@ -181,12 +181,12 @@
     );
     tabHeader.find(".wprrt-tab-title").text(tabTitle);
     const tabContent = $$3(
-      `<div class="wprrt-tab-content" id="${tabId}"><div class="wprrt-container"><div class="wprrt-form"><label>Role:<select class="wprrt-role-selector"></select></label><label>Plugin:<select class="wprrt-plugin" style="width:100%;margin-bottom:10px;"></select></label><label>Route:<div class="wprrt-route-container" style="position:relative;"><input type="text" class="wprrt-route" placeholder="Enter or select a route" style="width:100%;"><div class="wprrt-route-dropdown" style="display:none;position:absolute;width:100%;"></div></div></label><div class="wprrt-params-container"></div><label>Method:<select class="wprrt-method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option></select></label><label>Headers (JSON):<div class="wprrt-field-container"><textarea class="wprrt-headers" rows="4" placeholder='{
+      `<div class="wprrt-tab-content" id="${tabId}"><div class="wprrt-container"><div class="wprrt-form"><label>Role:<select class="wprrt-role-selector"></select></label><label>Plugin:<select class="wprrt-plugin"></select></label><label>Route:<div class="wprrt-route-container"><input type="text" class="wprrt-route" placeholder="Enter or select a route"><div class="wprrt-route-dropdown"></div></div></label><div class="wprrt-params-container"></div><label>Method:<select class="wprrt-method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option></select></label><label>Headers (JSON):<div class="wprrt-field-container"><textarea class="wprrt-headers" rows="4" placeholder='{
   "Authorization": "Bearer your-token"
 }'></textarea><div class="wprrt-field-help"><small>Authentication headers, content type, etc.</small></div></div></label><label>Body (JSON):<div class="wprrt-field-container"><textarea class="wprrt-body" rows="6" placeholder='{
   "title": "Your Title",
   "status": "publish"
-}'></textarea><div class="wprrt-field-help"><small>For POST / PUT / PATCH requests.</small></div></div></label><div class="wprrt-form-actions"><button class="wprrt-test">Send</button><button class="wprrt-curl-btn" type="button">Copy as cURL</button><button class="wprrt-save-btn" type="button">Save</button></div><div class="wprrt-save-form" style="display:none;"><input type="text" class="wprrt-save-name" placeholder="Request name…" maxlength="80"><div class="wprrt-save-actions"><button class="wprrt-save-confirm" type="button">Save</button><button class="wprrt-save-cancel" type="button">Cancel</button></div></div></div><div class="wprrt-response-block"><h3>Response</h3><div class="wprrt-response-meta" style="display:none;"><span class="wprrt-status-badge"></span><span class="wprrt-response-time"></span></div><details class="wprrt-response-headers" style="display:none;"><summary>Response Headers (<span class="wprrt-header-count">0</span>)</summary><pre class="wprrt-headers-body"></pre></details><pre class="wprrt-response">Waiting for request...</pre></div></div></div>`
+}'></textarea><div class="wprrt-field-help"><small>For POST / PUT / PATCH requests.</small></div></div></label><div class="wprrt-form-actions"><button class="wprrt-test">Send</button><button class="wprrt-curl-btn" type="button">Copy as cURL</button><button class="wprrt-save-btn" type="button">Save</button></div><div class="wprrt-save-form"><input type="text" class="wprrt-save-name" placeholder="Request name…" maxlength="80"><div class="wprrt-save-actions"><button class="wprrt-save-confirm" type="button">Save</button><button class="wprrt-save-cancel" type="button">Cancel</button></div></div></div><div class="wprrt-response-block"><h3>Response</h3><div class="wprrt-response-meta"><span class="wprrt-status-badge"></span><span class="wprrt-response-time"></span></div><details class="wprrt-response-headers"><summary>Response Headers (<span class="wprrt-header-count">0</span>)</summary><pre class="wprrt-headers-body"></pre></details><pre class="wprrt-response">Waiting for request...</pre></div></div></div>`
     );
     $$3(".wprrt-tabs").append(tabHeader);
     $$3(".wprrt-tab-content-wrapper .wprrt-empty").remove();
@@ -1752,7 +1752,7 @@
       const cls = statusClass(status);
       badgeEl.attr("class", "wprrt-status-badge " + cls).text(label ? `${status} ${label}` : status);
       timeEl.text(`${elapsed}ms`);
-      metaEl.show();
+      metaEl.show().css("display", "flex");
       const hdrs = res.data.headers || {};
       const hdrKeys = Object.keys(hdrs);
       if (hdrKeys.length) {
@@ -1773,7 +1773,7 @@
     } else {
       badgeEl.attr("class", "wprrt-status-badge wprrt-status-error").text("Error");
       timeEl.text(`${elapsed}ms`);
-      metaEl.show();
+      metaEl.show().css("display", "flex");
       headersEl.hide();
       responseEl.removeClass("language-json").text(res.data || "An error occurred.");
     }
@@ -1781,7 +1781,7 @@
   function renderRequestError(tabContent, elapsed) {
     tabContent.find(".wprrt-status-badge").attr("class", "wprrt-status-badge wprrt-status-error").text("Request Failed");
     tabContent.find(".wprrt-response-time").text(elapsed ? `${elapsed}ms` : "");
-    tabContent.find(".wprrt-response-meta").show();
+    tabContent.find(".wprrt-response-meta").show().css("display", "flex");
     tabContent.find(".wprrt-response-headers").hide();
     tabContent.find(".wprrt-response").removeClass("language-json").text("Could not connect to the server. Please try again.");
   }
@@ -1903,8 +1903,12 @@
     });
     $$1(document).on("click", ".wprrt-save-btn", function() {
       const form = $$1(this).closest(".wprrt-tab-content").find(".wprrt-save-form");
-      form.toggle();
-      if (form.is(":visible")) form.find(".wprrt-save-name").val("").trigger("focus");
+      if (form.is(":visible")) {
+        form.hide();
+      } else {
+        form.show().css("display", "flex");
+        form.find(".wprrt-save-name").val("").trigger("focus");
+      }
     });
     $$1(document).on("click", ".wprrt-save-confirm", function() {
       const tabContent = $$1(this).closest(".wprrt-tab-content");

@@ -121,8 +121,12 @@ function bindEvents() {
   // Show inline save form
   $(document).on('click', '.wprrt-save-btn', function () {
     const form = $(this).closest('.wprrt-tab-content').find('.wprrt-save-form');
-    form.toggle();
-    if (form.is(':visible')) form.find('.wprrt-save-name').val('').trigger('focus');
+    if (form.is(':visible')) {
+      form.hide();
+    } else {
+      form.show().css('display', 'flex');
+      form.find('.wprrt-save-name').val('').trigger('focus');
+    }
   });
 
   // Confirm save

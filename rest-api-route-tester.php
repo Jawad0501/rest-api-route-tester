@@ -3,7 +3,7 @@
  * Plugin Name: REST API Route Tester
  * Plugin URI: https://wordpress.org/plugins/rest-api-route-tester/
  * Description: A tool to test WordPress REST API routes with different user roles and authentication methods.
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: jawad0501
  * Author URI: https://profiles.wordpress.org/jawad0501/
  * License: GPL v2 or later
@@ -19,6 +19,19 @@ if (!defined('ABSPATH')) exit;
 require_once plugin_dir_path(__FILE__) . 'includes/class-saved-requests.php';
 
 class RESTAPIRouteTester {
+    /**
+     * When set, force REST auth checks to run as this user ID.
+     *
+     * @var int
+     */
+    private $forced_user_id = 0;
+    /**
+     * Whether to force guest (logged-out) context for current test request.
+     *
+     * @var bool
+     */
+    private $force_guest_user = false;
+
     public function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
@@ -45,7 +58,7 @@ class RESTAPIRouteTester {
     public function enqueue_scripts($hook) {
         if ($hook !== 'toplevel_page_rest-api-route-tester') return;
 
-        $version = '1.4.0';
+        $version = '1.4.1';
         wp_enqueue_style('wprrt-style', plugin_dir_url(__FILE__) . 'assets/style.css', array(), $version);
         wp_enqueue_script('wprrt-script', plugin_dir_url(__FILE__) . 'assets/app.js', array('jquery'), $version, true);
 
@@ -101,7 +114,10 @@ class RESTAPIRouteTester {
         
         // Add a default option
         $roles = array_merge(
-            array('' => 'Default (Current User)'),
+            array(
+                ''      => 'Default (Current User)',
+                'guest' => 'Guest (Logged-out User)',
+            ),
             $roles
         );
         
@@ -158,14 +174,28 @@ class RESTAPIRouteTester {
             wp_send_json_error('Route not found: ' . $route);
         }
 
-        // Create a test user with the specified role if a role is provided
+        // Keep original user context so we can restore it after testing.
+        $original_user_id = get_current_user_id();
+
+        // Create a test user with the specified role if a role is provided.
         $test_user = null;
-        if (!empty($role)) {
+        if ('guest' === $role) {
+            // Force completely unauthenticated request context.
+            $this->force_guest_user = true;
+            $this->forced_user_id = 0;
+            add_filter('determine_current_user', array($this, 'force_current_user_for_test'), PHP_INT_MAX);
+            wp_set_current_user(0);
+        } elseif (!empty($role)) {
             $test_user = $this->create_test_user($role);
             if (is_wp_error($test_user)) {
                 wp_send_json_error($test_user->get_error_message());
                 return;
             }
+
+            // Force REST auth checks to evaluate as the selected test user.
+            $this->forced_user_id = (int) $test_user->ID;
+            add_filter('determine_current_user', array($this, 'force_current_user_for_test'), PHP_INT_MAX);
+            add_filter('user_has_cap', array($this, 'force_user_caps_for_test'), PHP_INT_MAX, 4);
             wp_set_current_user($test_user->ID);
         }
 
@@ -190,11 +220,64 @@ class RESTAPIRouteTester {
                 'data'    => $response->get_data(),
             ]);
         } finally {
+            if ('guest' === $role || $test_user) {
+                remove_filter('determine_current_user', array($this, 'force_current_user_for_test'), PHP_INT_MAX);
+            }
+
+            if ($test_user) {
+                remove_filter('user_has_cap', array($this, 'force_user_caps_for_test'), PHP_INT_MAX);
+            }
+            $this->forced_user_id = 0;
+            $this->force_guest_user = false;
+
+            // Restore original user context for subsequent admin/AJAX requests.
+            wp_set_current_user($original_user_id);
+
             // Always clean up the test user, even if an exception was thrown
             if ($test_user) {
                 wp_delete_user($test_user->ID);
             }
         }
+    }
+
+    /**
+     * Force REST authentication to use the selected test user.
+     *
+     * @param int|false $user_id Current resolved user ID.
+     * @return int|false
+     */
+    public function force_current_user_for_test($user_id) {
+        if ($this->force_guest_user) {
+            return 0;
+        }
+
+        if ($this->forced_user_id > 0) {
+            return $this->forced_user_id;
+        }
+
+        return $user_id;
+    }
+
+    /**
+     * Ensure capability checks resolve against the selected test user.
+     *
+     * @param array $allcaps All capabilities for the user.
+     * @param array $caps    Primitive capabilities being checked.
+     * @param array $args    Context args passed to current_user_can().
+     * @param WP_User $user  User object being evaluated.
+     * @return array
+     */
+    public function force_user_caps_for_test($allcaps, $caps, $args, $user) {
+        if ($this->forced_user_id <= 0) {
+            return $allcaps;
+        }
+
+        $forced_user = get_userdata($this->forced_user_id);
+        if (!$forced_user instanceof WP_User) {
+            return $allcaps;
+        }
+
+        return $forced_user->allcaps;
     }
 
     public function save_request() {
