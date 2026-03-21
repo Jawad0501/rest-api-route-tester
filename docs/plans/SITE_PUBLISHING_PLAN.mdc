@@ -1,0 +1,93 @@
+# Publishing plan — `docs/site` static documentation
+
+## Goals
+
+- Ship a **version-controlled** HTML/CSS/JS site that can be published to **any static host** with zero build.
+- Document **one canonical URL** after publish (update `Plugin URI`, readme links, and optional `plugin_row_meta`).
+- Keep **WordPress.org** as the primary distribution channel; the static site is **companion** documentation.
+
+## Non-goals
+
+- Server-side rendering, databases, or WordPress-as-doc-host (unless you choose that separately).
+- Coupling publish pipeline to a single vendor; the plan lists alternatives.
+
+## Architecture overview
+
+```
+docs/site/           → artifact root (index.html + assets/)
+        ↓
+   static host (HTTPS)
+```
+
+**Path dependency:** CSS/JS use relative URLs (`assets/css/main.css`). Publish with **`docs/site` as the site root** so paths resolve. If you must publish from a subpath (e.g. `example.com/docs/`), add a `<base href="...">` or switch to root-relative paths (`/assets/...`) and configure the host accordingly.
+
+## API compatibility notes
+
+- Documentation describes **admin-ajax** actions in the current `rest-api-route-tester.php`. When you change handlers or `wprrt_vars`, update `api.html` and bump a note in changelog.
+- No runtime API between the static site and WordPress; no CORS concerns.
+
+## File-by-file change list (publishing-related)
+
+| Path | When to change |
+|------|----------------|
+| `rest-api-route-tester.php` | Set `Plugin URI` to the live docs or marketing URL once stable. |
+| `README.md` | Keep “Documentation” link in sync with published URL. |
+| `readme.txt` | Optional one-line pointer to docs URL for .org (HTTPS only). |
+| `docs/site/*.html` | Replace relative links if switching to absolute URLs for SEO. |
+
+## PR breakdown
+
+1. **Merge** the static site + `SITE_PUBLISHING_PLAN.mdc` (this file) + `docs/site/README.md`.
+2. **Choose host** (below) and run a **staging** deploy (branch or preview URL).
+3. **Smoke test:** home, dev, api pages; mobile menu; fonts load; no mixed content.
+4. **Go live:** point DNS or enable custom domain; set canonical URL in plugin header on next release.
+
+## Test plan (pre–go-live)
+
+- [ ] All internal links work on the deployed origin (not only `file://` or localhost).
+- [ ] `assets/css/main.css` and `assets/js/main.js` return 200 (check Network tab).
+- [ ] Lighthouse: no critical accessibility regressions (skip link, nav labels).
+- [ ] Optional: [validator.w3.org](https://validator.w3.org/) on each HTML file.
+
+## Migration / backfill
+
+- **First publish:** no data migration.
+- **If changing hosts:** update links once; old URLs can redirect at the DNS/CDN layer.
+
+---
+
+## Host options (pick one)
+
+### GitHub Pages
+
+1. Push repo to GitHub.
+2. **Settings → Pages →** Build from branch/folder: select branch and **`/docs/site`** as folder (or use `gh-pages` branch containing only `docs/site` contents).
+3. If GitHub serves from project site `https://user.github.io/repo/`, either set **site root** to that subpath in Pages settings (so `index.html` is at repo root of the Pages branch) **or** add `<base href="/repo-name/">` in each HTML file—simplest is a **dedicated branch** or **workflow** that copies `docs/site/*` to the root of `gh-pages`.
+4. Custom domain: add `CNAME` file in published root + DNS records per GitHub docs.
+
+### Cloudflare Pages
+
+1. Connect Git repo; set **build command** empty, **output directory** `docs/site` (or build command `exit 0` and root `docs/site`).
+2. Attach custom domain in Cloudflare dashboard; SSL automatic.
+
+### Netlify
+
+1. New site from Git; **publish directory** `docs/site`.
+2. No build command required.
+3. Domain: Netlify DNS or external CNAME.
+
+### Any VPS / shared hosting (FTP/SFTP)
+
+1. Upload contents of `docs/site/` (not the parent `docs/` folder) into `public_html/` or subdirectory.
+2. Ensure `index.html` is the default document.
+
+### Amazon S3 + CloudFront (advanced)
+
+1. Sync `docs/site/` to a bucket; enable static website hosting; CloudFront for HTTPS and custom domain.
+
+## Post-publish checklist
+
+- [ ] HTTPS everywhere; HTTP → HTTPS redirect.
+- [ ] Favicon (add `favicon.ico` later if desired).
+- [ ] Submit sitemap to search consoles (optional; small site).
+- [ ] Tag a git release noting “documentation site live at …”.

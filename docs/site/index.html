@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="REST API Route Tester — test WordPress REST routes from wp-admin with role switching, headers, and JSON body.">
+  <title>REST API Route Tester — WordPress developer tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-logo" href="index.html">REST API Route Tester <span>for WordPress</span></a>
+      <button type="button" class="site-nav__toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">☰</button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="index.html" aria-current="page">Home</a>
+        <a href="dev.html">Developer docs</a>
+        <a href="api.html">Admin-Ajax API</a>
+        <a href="https://wordpress.org/plugins/rest-api-route-tester/">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <h1>Test REST routes without leaving WordPress</h1>
+      <p class="lead">
+        A free admin tool to list registered routes, send GET/POST/PUT/DELETE requests with custom headers and JSON bodies,
+        and preview responses—optionally as different user roles.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="https://wordpress.org/plugins/rest-api-route-tester/">Install from WordPress.org</a>
+        <a class="btn btn--ghost" href="dev.html">Developer documentation</a>
+      </div>
+    </section>
+
+    <section aria-labelledby="features-heading">
+      <h2 id="features-heading" class="section-title">What it does</h2>
+      <div class="feature-grid">
+        <article class="card">
+          <h3>Route discovery</h3>
+          <p>Loads every route WordPress has registered, with HTTP methods. Filter by plugin or browse all.</p>
+        </article>
+        <article class="card">
+          <h3>Readable patterns</h3>
+          <p>Complex regex route patterns are shown in a friendlier form so you can pick parameters quickly.</p>
+        </article>
+        <article class="card">
+          <h3>Full request control</h3>
+          <p>Headers and body as JSON, form-style params, and role selection to test permissions.</p>
+        </article>
+        <article class="card">
+          <h3>Built for admins</h3>
+          <p>Requires <code>manage_options</code>. Uses WordPress nonces and admin-ajax—no public endpoints added by the plugin.</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="safety-heading">
+      <h2 id="safety-heading" class="section-title">Safety</h2>
+      <p class="lead" style="margin-bottom: 1rem;">
+        This plugin is aimed at <strong>development and staging</strong>. It can create temporary users for role tests and invoke arbitrary REST routes your site exposes.
+        Use with care on production.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <span>GPL-2.0-or-later · <a href="https://profiles.wordpress.org/jawad0501/">jawad0501</a></span>
+      <span><a href="api.html">Integration reference</a> · <a href="https://wordpress.org/plugins/rest-api-route-tester/">Plugin directory</a></span>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>

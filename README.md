@@ -9,6 +9,11 @@ License: GPLv2 or later
 
 A powerful WordPress plugin that provides a user-friendly interface to test WordPress REST API endpoints directly from your WordPress admin panel. This plugin is inspired by Postman's functionality but integrated directly into WordPress.
 
+## Documentation
+
+- **Static site (HTML/CSS/JS):** [`docs/site/`](docs/site/) — landing page, developer docs, and Admin-Ajax API reference. Preview locally from that folder (see `docs/site/README.md`).
+- **Publishing:** [`docs/plans/SITE_PUBLISHING_PLAN.mdc`](docs/plans/SITE_PUBLISHING_PLAN.mdc) — GitHub Pages, Netlify, Cloudflare Pages, or generic static hosting.
+
 ## Features
 
 ### 1. Plugin-Specific Route Testing

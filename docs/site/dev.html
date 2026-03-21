@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Developer documentation for REST API Route Tester — project layout, requirements, and customization.">
+  <title>Developer docs — REST API Route Tester</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-logo" href="index.html">REST API Route Tester <span>for WordPress</span></a>
+      <button type="button" class="site-nav__toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">☰</button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="dev.html" aria-current="page">Developer docs</a>
+        <a href="api.html">Admin-Ajax API</a>
+        <a href="https://wordpress.org/plugins/rest-api-route-tester/">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <h1 class="page-title">Developer documentation</h1>
+    <p class="lead">How the plugin is structured, what it depends on, and where to change behavior.</p>
+
+    <section class="doc-block" aria-labelledby="req-heading">
+      <h2 id="req-heading">Requirements</h2>
+      <ul>
+        <li>WordPress 5.0+</li>
+        <li>PHP 7.2+ (see plugin header in <code>rest-api-route-tester.php</code> for the authoritative minimum)</li>
+        <li>jQuery (bundled with WordPress admin)</li>
+        <li>User with <code>manage_options</code> to use the UI and execute tests</li>
+      </ul>
+    </section>
+
+    <section class="doc-block" aria-labelledby="layout-heading">
+      <h2 id="layout-heading">Repository layout</h2>
+      <pre class="pre-wrap" role="region" aria-label="Folder structure">rest-api-route-tester/
+├── rest-api-route-tester.php   # Main plugin class, hooks, AJAX handlers
+├── assets/
+│   ├── app.js                  # Admin UI (jQuery)
+│   └── style.css               # Admin styles
+├── templates/
+│   └── admin-page.php          # Admin screen markup
+├── languages/                  # Translations
+└── docs/
+    └── site/                   # This static documentation site (HTML/CSS/JS)</pre>
+    </section>
+
+    <section class="doc-block" aria-labelledby="flow-heading">
+      <h2 id="flow-heading">Runtime flow</h2>
+      <ol>
+        <li>On <code>admin_enqueue_scripts</code>, scripts load only on the plugin’s admin page.</li>
+        <li><code>wp_localize_script</code> exposes <code>wprrt_vars</code> with <code>ajax_url</code> and <code>nonce</code>.</li>
+        <li>The UI calls <code>admin-ajax.php</code> actions prefixed with <code>wprrt_</code> (see <a href="api.html">Admin-Ajax API</a>).</li>
+        <li>Tests use <code>rest_do_request()</code> against the active REST server—no separate HTTP client.</li>
+      </ol>
+    </section>
+
+    <section class="doc-block" aria-labelledby="custom-heading">
+      <h2 id="custom-heading">Customizing the admin UI</h2>
+      <p>Edit <code>assets/app.js</code> and <code>assets/style.css</code>. Rebuild steps are not required unless you add a separate front-end toolchain.</p>
+      <p class="note">If you add a bundler later, keep built files in <code>assets/</code> and enqueue them from PHP so WordPress loads a single script handle.</p>
+    </section>
+
+    <section class="doc-block" aria-labelledby="site-heading">
+      <h2 id="site-heading">This documentation site</h2>
+      <p>Plain HTML, CSS, and JS under <code>docs/site/</code>. Replace <code>assets/css/main.css</code> or swap the markup in each page to retheme. Shared chrome is duplicated across pages on purpose so you can move to any templating system later without fighting a build step.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <span>GPL-2.0-or-later · <a href="https://profiles.wordpress.org/jawad0501/">jawad0501</a></span>
+      <span><a href="index.html">Home</a> · <a href="api.html">Admin-Ajax API</a></span>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>

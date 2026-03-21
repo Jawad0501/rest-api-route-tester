@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Admin-Ajax API reference for REST API Route Tester — actions, parameters, and responses.">
+  <title>Admin-Ajax API — REST API Route Tester</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-logo" href="index.html">REST API Route Tester <span>for WordPress</span></a>
+      <button type="button" class="site-nav__toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">☰</button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="dev.html">Developer docs</a>
+        <a href="api.html" aria-current="page">Admin-Ajax API</a>
+        <a href="https://wordpress.org/plugins/rest-api-route-tester/">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <h1 class="page-title">Admin-Ajax API</h1>
+    <p class="lead">
+      The plugin does <strong>not</strong> register public REST routes for testing. All server interaction from the admin UI uses
+      <code>POST</code> to <code>admin-ajax.php</code> with a WordPress AJAX action. Responses use the standard
+      <code>wp_send_json_success</code> / <code>wp_send_json_error</code> envelope.
+    </p>
+
+    <section class="doc-block" aria-labelledby="nonce-heading">
+      <h2 id="nonce-heading">Localized script: <code>wprrt_vars</code></h2>
+      <p>Injected via <code>wp_localize_script</code> on the admin screen handle <code>wprrt-script</code>:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Key</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>ajax_url</code></td><td>URL to <code>admin-ajax.php</code></td></tr>
+            <tr><td><code>nonce</code></td><td>Nonce string for action <code>wprrt_nonce</code> (POST field name <code>nonce</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="doc-block" aria-labelledby="actions-heading">
+      <h2 id="actions-heading">Actions</h2>
+      <p>Send <code>POST</code> to <code>ajax_url</code> with <code>action</code> set to one of the values below, plus <code>nonce</code>.</p>
+
+      <h3 class="section-title" style="margin-top: 1.5rem;"><code>wprrt_get_routes</code></h3>
+      <p>Returns all registered REST routes with methods. Nonce required; no extra capability beyond logged-in admin context for the AJAX call.</p>
+      <p><strong>Success data:</strong> object keyed by route path; each value includes <code>methods</code> (array) and <code>primary_method</code> (string).</p>
+
+      <h3 class="section-title"><code>wprrt_get_user_roles</code></h3>
+      <p>Returns role slugs and labels for the role dropdown, plus an empty string key for “Default (Current User)”.</p>
+      <p><strong>Success data:</strong> object <code>{ [roleSlug: string]: string }</code></p>
+
+      <h3 class="section-title"><code>wprrt_test_route</code></h3>
+      <p>Executes <code>rest_do_request()</code> for the given route. Requires <code>current_user_can( 'manage_options' )</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>POST field</th><th>Required</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>nonce</code></td><td>yes</td><td>Must verify against <code>wprrt_nonce</code></td></tr>
+            <tr><td><code>route</code></td><td>yes</td><td>REST path (e.g. <code>/wp/v2/posts</code>)</td></tr>
+            <tr><td><code>method</code></td><td>no</td><td>Default <code>GET</code>. Allowed: <code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code></td></tr>
+            <tr><td><code>headers</code></td><td>no</td><td>JSON object string (parsed server-side)</td></tr>
+            <tr><td><code>form</code></td><td>no</td><td>JSON object string</td></tr>
+            <tr><td><code>body</code></td><td>no</td><td>JSON string; parsed for POST/PUT body params</td></tr>
+            <tr><td><code>role</code></td><td>no</td><td>If set, a temporary user is created with that role for the request, then deleted</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Success data:</strong> REST response body from <code>WP_REST_Response::get_data()</code> (shape depends on the route).</p>
+      <p><strong>Errors:</strong> invalid method, invalid JSON, insufficient permissions, user creation failure, etc.—returned via JSON error envelope.</p>
+    </section>
+
+    <section class="doc-block" aria-labelledby="example-heading">
+      <h2 id="example-heading">Example (conceptual)</h2>
+      <pre class="pre-wrap" role="region" aria-label="Example POST body">action=wprrt_get_routes&amp;nonce=...</pre>
+      <p class="note">Do not expose the nonce to untrusted browsers; this reference is for developers extending the admin UI only.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <span>GPL-2.0-or-later · <a href="https://profiles.wordpress.org/jawad0501/">jawad0501</a></span>
+      <span><a href="index.html">Home</a> · <a href="dev.html">Developer docs</a></span>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>
