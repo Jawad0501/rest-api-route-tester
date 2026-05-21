@@ -6,6 +6,10 @@ import { resolveRoute } from './params.js';
 
 const $ = window.jQuery;
 
+function shellEscape(str) {
+  return String(str).replace(/'/g, "'\\''");
+}
+
 export function copyCurl(tabContent) {
   const route  = resolveRoute(tabContent);
   const method = tabContent.find('.wprrt-method').val();
@@ -15,21 +19,21 @@ export function copyCurl(tabContent) {
   const base = (window.wprrt_vars.rest_url || '').replace(/\/$/, '');
   const url  = base + route;
 
-  const parts = [`curl -X ${method}`, `  "${url}"`];
+  const parts = [`curl -X ${method}`, `  '${shellEscape(url)}'`];
 
   let parsedHeaders = {};
   if (headers) {
     try { parsedHeaders = JSON.parse(headers); } catch (e) {}
   }
   Object.entries(parsedHeaders).forEach(([k, v]) => {
-    parts.push(`  -H "${k}: ${v}"`);
+    parts.push(`  -H '${shellEscape(k)}: ${shellEscape(v)}'`);
   });
 
   if (['POST', 'PUT', 'PATCH'].includes(method) && body && body !== '{}') {
     if (!parsedHeaders['Content-Type']) {
-      parts.push(`  -H "Content-Type: application/json"`);
+      parts.push(`  -H 'Content-Type: application/json'`);
     }
-    parts.push(`  -d '${body}'`);
+    parts.push(`  -d '${shellEscape(body)}'`);
   }
 
   const curlCmd = parts.join(' \\\n');

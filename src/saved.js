@@ -3,21 +3,15 @@
  */
 
 import { saveState } from './state.js';
+import { getParamValues } from './params.js';
+import { renderParams, restoreParamValues } from './params.js';
 
 const $ = window.jQuery;
-
-// -----------------------------------------------------------------------
-// Sidebar shell
-// -----------------------------------------------------------------------
 
 export function initSidebar() {
   loadSaved();
   bindEvents();
 }
-
-// -----------------------------------------------------------------------
-// Server communication
-// -----------------------------------------------------------------------
 
 function loadSaved() {
   $.post(window.wprrt_vars.ajax_url, {
@@ -31,23 +25,30 @@ function loadSaved() {
 }
 
 export function saveCurrentTab(tabContent, name) {
-  const route   = tabContent.find('.wprrt-route').val();
-  const method  = tabContent.find('.wprrt-method').val();
-  const headers = tabContent.find('.wprrt-headers').val();
-  const body    = tabContent.find('.wprrt-body').val();
+  const route     = tabContent.find('.wprrt-route').val();
+  const method    = tabContent.find('.wprrt-method').val();
+  const headers   = tabContent.find('.wprrt-headers').val();
+  const body      = tabContent.find('.wprrt-body').val();
+  const role      = tabContent.find('.wprrt-role-selector').val();
+  const auth_type = tabContent.find('.wprrt-auth-type').val() || 'none';
+  const params    = getParamValues(tabContent);
 
   $.post(window.wprrt_vars.ajax_url, {
     action: 'wprrt_save_request',
     nonce:  window.wprrt_vars.nonce,
-    name, route, method, headers, body,
+    name, route, method, headers, body, role, auth_type,
+    params: JSON.stringify(params),
   }, res => {
-    if (res.success) loadSaved();
+    if (res.success) {
+      loadSaved();
+      return;
+    }
+    const msg = (typeof res.data === 'string' && res.data) || 'Could not save request.';
+    window.alert(msg);
+  }).fail(() => {
+    window.alert('Could not save request. Check your connection and try again.');
   });
 }
-
-// -----------------------------------------------------------------------
-// Rendering
-// -----------------------------------------------------------------------
 
 const METHOD_COLOURS = {
   GET:     '#1a7f37',
@@ -95,19 +96,13 @@ function renderSavedList(items) {
   });
 }
 
-// -----------------------------------------------------------------------
-// Event delegation (bound once in initSidebar)
-// -----------------------------------------------------------------------
-
 function bindEvents() {
-  // Click saved item → populate active tab
   $(document).on('click', '.wprrt-saved-item', function (e) {
     if ($(e.target).hasClass('wprrt-saved-delete')) return;
     const id = $(this).data('id');
     populateTabFromId(id);
   });
 
-  // Delete saved item
   $(document).on('click', '.wprrt-saved-delete', function (e) {
     e.stopPropagation();
     const id = $(this).data('id');
@@ -118,7 +113,6 @@ function bindEvents() {
     }, () => loadSaved());
   });
 
-  // Show inline save form
   $(document).on('click', '.wprrt-save-btn', function () {
     const form = $(this).closest('.wprrt-tab-content').find('.wprrt-save-form');
     if (form.is(':visible')) {
@@ -129,7 +123,6 @@ function bindEvents() {
     }
   });
 
-  // Confirm save
   $(document).on('click', '.wprrt-save-confirm', function () {
     const tabContent = $(this).closest('.wprrt-tab-content');
     const name = tabContent.find('.wprrt-save-name').val().trim();
@@ -141,12 +134,10 @@ function bindEvents() {
     tabContent.find('.wprrt-save-form').hide();
   });
 
-  // Cancel save
   $(document).on('click', '.wprrt-save-cancel', function () {
     $(this).closest('.wprrt-save-form').hide();
   });
 
-  // Allow Enter key in name input to confirm
   $(document).on('keydown', '.wprrt-save-name', function (e) {
     if (e.key === 'Enter') {
       $(this).closest('.wprrt-tab-content').find('.wprrt-save-confirm').trigger('click');
@@ -157,12 +148,7 @@ function bindEvents() {
   });
 }
 
-// -----------------------------------------------------------------------
-// Populate active tab from a saved item id
-// -----------------------------------------------------------------------
-
 function populateTabFromId(id) {
-  // Re-fetch to get current data (avoids stale closures)
   $.post(window.wprrt_vars.ajax_url, {
     action: 'wprrt_get_saved_requests',
     nonce:  window.wprrt_vars.nonce,
@@ -178,6 +164,21 @@ function populateTabFromId(id) {
     tabContent.find('.wprrt-method').val(item.method);
     tabContent.find('.wprrt-headers').val(item.headers || '');
     tabContent.find('.wprrt-body').val(item.body || '');
+
+    if (item.role !== undefined) {
+      tabContent.find('.wprrt-role-selector').val(item.role);
+    }
+    if (item.auth_type) {
+      tabContent.find('.wprrt-auth-type').val(item.auth_type);
+    }
+
+    if (item.route) {
+      renderParams(tabContent, item.route);
+      restoreParamValues(tabContent, item.params || {});
+    }
+
     saveState();
   });
 }
+
+export { loadSaved };

@@ -5,6 +5,8 @@
 import { saveState } from './state.js';
 import { renderResponse, renderRequestError } from './response.js';
 import { resolveRoute } from './params.js';
+import { setResponseView } from './ui-response.js';
+import { loadHistory } from './history.js';
 
 const $ = window.jQuery;
 
@@ -17,9 +19,10 @@ export function sendRequest(tabContent) {
   const responseEl = tabContent.find('.wprrt-response');
   const testButton = tabContent.find('.wprrt-test');
 
-  // Reset response area to loading state
   tabContent.find('.wprrt-response-meta').hide();
   tabContent.find('.wprrt-response-headers').hide();
+  setResponseView(tabContent, 'json');
+  tabContent.find('.wprrt-ai-panel').empty();
   responseEl.removeClass('language-json').html(
     '<div class="wprrt-loading">' +
       '<div class="wprrt-loading-spinner"></div>' +
@@ -39,6 +42,7 @@ export function sendRequest(tabContent) {
     testButton.prop('disabled', false);
     renderResponse(tabContent, res, elapsed);
     saveState();
+    loadHistory();
   }).fail(() => {
     const elapsed = (performance.now() - startTime).toFixed(2);
     testButton.prop('disabled', false);

@@ -45,7 +45,13 @@ export function saveState() {
 
 export function loadState() {
   const saved = localStorage.getItem('wprrt_state');
-  return saved ? JSON.parse(saved) : null;
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch (e) {
+    localStorage.removeItem('wprrt_state');
+    return null;
+  }
 }
 
 export function clearState() {

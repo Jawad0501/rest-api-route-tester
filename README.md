@@ -1,9 +1,9 @@
 # Rest API Route Tester
-Version: 1.4.1
+Version: 1.5.0
 Author: Nowshad Jawad
 Requires at least: 4.5
-Tested up to: 6.9
-Stable Tag: 1.4.1
+Tested up to: 7.0
+Stable Tag: 1.5.0
 License: GPLv2 or later
 
 

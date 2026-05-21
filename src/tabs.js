@@ -4,6 +4,11 @@
 
 import { WPRRT, saveState, clearState } from './state.js';
 import { initAuthDropdown } from './auth.js';
+import {
+  buildAiDisconnectedNoticeHtml,
+  buildBodySuggestButtonHtml,
+  buildResponseAiToolbarHtml,
+} from './ai.js';
 import { renderParams, restoreParamValues } from './params.js';
 
 const $ = window.jQuery;
@@ -34,7 +39,7 @@ export function populatePluginDropdown(pluginSelect) {
 
   const allOpt = document.createElement('option');
   allOpt.value       = 'all';
-  allOpt.textContent = 'All Plugins';
+  allOpt.textContent = 'All namespaces';
   pluginSelect.append(allOpt);
 
   Object.keys(WPRRT.pluginRoutes).sort().forEach(plugin => {
@@ -68,76 +73,117 @@ export function switchTab(tabId) {
 }
 
 export function createNewTab(tabData) {
+  const s = window.wprrt_vars?.strings || {};
   const tabId    = tabData ? tabData.id : `tab-${++WPRRT.tabCounter}`;
   const tabTitle = tabData ? tabData.title : `Request ${WPRRT.tabCounter}`;
 
-  // Tab header — title set via .text() to avoid XSS
   const tabHeader = $(
     `<div class="wprrt-tab-header" data-tab-id="${tabId}">` +
       `<span class="wprrt-tab-title"></span>` +
-      `<button class="wprrt-close-tab">&times;</button>` +
+      `<button type="button" class="wprrt-close-tab" aria-label="Close tab">&times;</button>` +
     `</div>`
   );
   tabHeader.find('.wprrt-tab-title').text(tabTitle);
 
-  // Tab content
   const tabContent = $(
     `<div class="wprrt-tab-content" id="${tabId}">` +
-      `<div class="wprrt-container">` +
+      `<div class="wprrt-workspace">` +
         `<div class="wprrt-form">` +
-          `<label>Role:<select class="wprrt-role-selector"></select></label>` +
-          `<label>Plugin:` +
-            `<select class="wprrt-plugin"></select>` +
-          `</label>` +
-          `<label>Route:` +
-            `<div class="wprrt-route-container">` +
-              `<input type="text" class="wprrt-route" placeholder="Enter or select a route">` +
-              `<div class="wprrt-route-dropdown"></div>` +
+          `<section class="wprrt-section">` +
+            `<h3 class="wprrt-section-title">Request</h3>` +
+            `<div class="wprrt-field-row wprrt-field-row--2">` +
+              `<label class="wprrt-field">Role` +
+                `<select class="wprrt-role-selector"></select>` +
+              `</label>` +
+              `<label class="wprrt-field">Namespace` +
+                `<select class="wprrt-plugin"></select>` +
+              `</label>` +
             `</div>` +
-          `</label>` +
-          `<div class="wprrt-params-container"></div>` +
-          `<label>Method:` +
-            `<select class="wprrt-method">` +
-              `<option>GET</option><option>POST</option><option>PUT</option>` +
-              `<option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option>` +
-            `</select>` +
-          `</label>` +
-          `<label>Headers (JSON):` +
-            `<div class="wprrt-field-container">` +
+            `<label class="wprrt-field">Route` +
+              `<div class="wprrt-route-container">` +
+                `<input type="text" class="wprrt-route" placeholder="Enter or select a route" autocomplete="off">` +
+                `<div class="wprrt-route-dropdown"></div>` +
+              `</div>` +
+            `</label>` +
+            `<div class="wprrt-params-container"></div>` +
+            `<label class="wprrt-field wprrt-field--inline">Method` +
+              `<select class="wprrt-method">` +
+                `<option>GET</option><option>POST</option><option>PUT</option>` +
+                `<option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option>` +
+              `</select>` +
+            `</label>` +
+          `</section>` +
+          `<section class="wprrt-section">` +
+            `<h3 class="wprrt-section-title">Payload</h3>` +
+            `<div class="wprrt-label-row">` +
+              `<label class="wprrt-field wprrt-field--grow">Body (JSON)` +
+                `<textarea class="wprrt-body" rows="7" placeholder='{\n  "title": "Your Title",\n  "status": "publish"\n}'></textarea>` +
+              `</label>` +
+              `<div class="wprrt-label-row-actions">` +
+                buildBodySuggestButtonHtml() +
+              `</div>` +
+            `</div>` +
+            `<span class="wprrt-field-hint">POST/PUT/PATCH body, or query parameters for GET.</span>` +
+            `<div class="wprrt-body-suggestion" hidden>` +
+              `<div class="wprrt-body-suggestion-head">` +
+                `<span class="wprrt-body-suggestion-title">${s.ai_suggestion_title || 'Suggested request body'}</span>` +
+                `<div class="wprrt-body-suggestion-actions">` +
+                  `<button type="button" class="wprrt-btn wprrt-btn--primary wprrt-body-suggestion-apply">${s.ai_apply_body || 'Apply to body'}</button>` +
+                  `<button type="button" class="wprrt-btn wprrt-btn--ghost wprrt-body-suggestion-dismiss">${s.ai_dismiss || 'Dismiss'}</button>` +
+                `</div>` +
+              `</div>` +
+              `<pre class="wprrt-body-suggestion-preview"></pre>` +
+              `<p class="wprrt-body-suggestion-error"></p>` +
+            `</div>` +
+          `</section>` +
+          `<section class="wprrt-section wprrt-section--headers">` +
+            `<h3 class="wprrt-section-title">Headers</h3>` +
+            `<label class="wprrt-field">Headers (JSON)` +
               `<textarea class="wprrt-headers" rows="4" placeholder='{\n  "Authorization": "Bearer your-token"\n}'></textarea>` +
-              `<div class="wprrt-field-help"><small>Authentication headers, content type, etc.</small></div>` +
-            `</div>` +
-          `</label>` +
-          `<label>Body (JSON):` +
-            `<div class="wprrt-field-container">` +
-              `<textarea class="wprrt-body" rows="6" placeholder='{\n  "title": "Your Title",\n  "status": "publish"\n}'></textarea>` +
-              `<div class="wprrt-field-help"><small>For POST / PUT / PATCH requests.</small></div>` +
-            `</div>` +
-          `</label>` +
+              `<span class="wprrt-field-hint">Use auth presets above this field when needed.</span>` +
+            `</label>` +
+          `</section>` +
           `<div class="wprrt-form-actions">` +
-            `<button class="wprrt-test">Send</button>` +
-            `<button class="wprrt-curl-btn" type="button">Copy as cURL</button>` +
-            `<button class="wprrt-save-btn" type="button">Save</button>` +
+            `<button type="button" class="wprrt-btn wprrt-btn--primary wprrt-test">Send request</button>` +
+            `<button type="button" class="wprrt-btn wprrt-btn--secondary wprrt-curl-btn">Copy cURL</button>` +
+            `<button type="button" class="wprrt-btn wprrt-btn--secondary wprrt-save-btn">Save</button>` +
           `</div>` +
+          buildAiDisconnectedNoticeHtml() +
           `<div class="wprrt-save-form">` +
             `<input type="text" class="wprrt-save-name" placeholder="Request name…" maxlength="80">` +
             `<div class="wprrt-save-actions">` +
-              `<button class="wprrt-save-confirm" type="button">Save</button>` +
-              `<button class="wprrt-save-cancel" type="button">Cancel</button>` +
+              `<button type="button" class="wprrt-save-confirm">Save</button>` +
+              `<button type="button" class="wprrt-save-cancel">Cancel</button>` +
             `</div>` +
           `</div>` +
         `</div>` +
         `<div class="wprrt-response-block">` +
-          `<h3>Response</h3>` +
-          `<div class="wprrt-response-meta">` +
-            `<span class="wprrt-status-badge"></span>` +
-            `<span class="wprrt-response-time"></span>` +
+          `<div class="wprrt-response-toolbar">` +
+            `<div class="wprrt-response-toolbar-start">` +
+              `<span class="wprrt-response-toolbar-label">Response</span>` +
+              `<div class="wprrt-response-meta">` +
+                `<span class="wprrt-status-badge wprrt-status-idle">—</span>` +
+                `<span class="wprrt-response-time"></span>` +
+              `</div>` +
+            `</div>` +
+            `<div class="wprrt-response-toolbar-end">` +
+              buildResponseAiToolbarHtml() +
+            `</div>` +
           `</div>` +
-          `<details class="wprrt-response-headers">` +
-            `<summary>Response Headers (<span class="wprrt-header-count">0</span>)</summary>` +
-            `<pre class="wprrt-headers-body"></pre>` +
-          `</details>` +
-          `<pre class="wprrt-response">Waiting for request...</pre>` +
+          `<div class="wprrt-response-views">` +
+            `<div class="wprrt-response-view is-active" data-view="json">` +
+              `<details class="wprrt-response-headers">` +
+                `<summary>Response headers (<span class="wprrt-header-count">0</span>)</summary>` +
+                `<pre class="wprrt-headers-body"></pre>` +
+              `</details>` +
+              `<pre class="wprrt-response wprrt-response-json">Waiting for request…</pre>` +
+            `</div>` +
+            `<div class="wprrt-response-view" data-view="ai">` +
+              `<div class="wprrt-ai-panel">` +
+                `<p class="wprrt-ai-empty">Run a request, then use <strong>Explain</strong> to get an AI summary of the response here.</p>` +
+              `</div>` +
+            `</div>` +
+          `</div>` +
         `</div>` +
       `</div>` +
     `</div>`

@@ -4,6 +4,7 @@
 
 import Prism from 'prismjs';
 import 'prismjs/components/prism-json';
+import { setResponseView } from './ui-response.js';
 
 const STATUS_LABELS = {
   200: 'OK', 201: 'Created', 204: 'No Content',
@@ -34,8 +35,11 @@ export function renderResponse(tabContent, res, elapsed) {
   const headersPre = tabContent.find('.wprrt-headers-body');
   const responseEl = tabContent.find('.wprrt-response');
 
+  setResponseView(tabContent, 'json');
+
   if (res.success) {
     const status = res.data.status;
+    tabContent.data('last-status', status);
     const label  = STATUS_LABELS[status] || '';
     const cls    = statusClass(status);
 
