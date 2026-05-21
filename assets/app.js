@@ -36,7 +36,13 @@
   }
   function loadState() {
     const saved = localStorage.getItem("wprrt_state");
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      return JSON.parse(saved);
+    } catch (e) {
+      localStorage.removeItem("wprrt_state");
+      return null;
+    }
   }
   function clearState() {
     localStorage.removeItem("wprrt_state");
@@ -67,9 +73,9 @@
   function initAuthDropdown(tabContent, savedType) {
     const $2 = window.jQuery;
     const wrapper = $2(
-      '<label class="wprrt-auth-label">Auth preset:<select class="wprrt-auth-type"><option value="none">No Auth</option><option value="bearer">Bearer Token</option><option value="apikey">API Key</option><option value="basic">Basic Auth</option></select></label>'
+      '<label class="wprrt-field wprrt-auth-label">Auth preset<select class="wprrt-auth-type"><option value="none">No Auth</option><option value="bearer">Bearer Token</option><option value="apikey">API Key</option><option value="basic">Basic Auth</option></select><span class="wprrt-field-hint">Applies common auth headers to the field below.</span></label>'
     );
-    tabContent.find(".wprrt-headers").closest("label").before(wrapper);
+    tabContent.find(".wprrt-section--headers").prepend(wrapper);
     if (savedType && savedType !== "none") {
       wrapper.find(".wprrt-auth-type").val(savedType);
     }
@@ -78,7 +84,7 @@
       tabContent.find(".wprrt-headers").trigger("change");
     });
   }
-  const $$4 = window.jQuery;
+  const $$7 = window.jQuery;
   function parseParams(route) {
     const tokens = [];
     const re = /\{([^}]+)\}/g;
@@ -93,15 +99,15 @@
     const params = parseParams(route || "");
     const existing = {};
     container.find(".wprrt-param-input").each(function() {
-      existing[$$4(this).attr("data-param")] = $$4(this).val();
+      existing[$$7(this).attr("data-param")] = $$7(this).val();
     });
     container.empty();
     if (!params.length) return;
-    const grid = $$4('<div class="wprrt-params-grid"></div>');
+    const grid = $$7('<div class="wprrt-params-grid"></div>');
     params.forEach((param) => {
-      const label = $$4('<label class="wprrt-param-label"></label>');
-      const name = $$4('<span class="wprrt-param-name"></span>').text(param);
-      const input = $$4('<input type="text" class="wprrt-param-input">');
+      const label = $$7('<label class="wprrt-param-label"></label>');
+      const name = $$7('<span class="wprrt-param-name"></span>').text(param);
+      const input = $$7('<input type="text" class="wprrt-param-input">');
       input.attr("data-param", param);
       input.attr("placeholder", param);
       if (existing[param] !== void 0) input.val(existing[param]);
@@ -113,13 +119,20 @@
   function resolveRoute(tabContent) {
     let route = tabContent.find(".wprrt-route").val();
     tabContent.find(".wprrt-param-input").each(function() {
-      const param = $$4(this).attr("data-param");
-      const value = $$4(this).val().trim();
+      const param = $$7(this).attr("data-param");
+      const value = $$7(this).val().trim();
       if (value) {
         route = route.replace(`{${param}}`, encodeURIComponent(value));
       }
     });
     return route;
+  }
+  function getParamValues(tabContent) {
+    const values = {};
+    tabContent.find(".wprrt-param-input").each(function() {
+      values[$$7(this).attr("data-param")] = $$7(this).val();
+    });
+    return values;
   }
   function restoreParamValues(tabContent, params) {
     if (!params || !Object.keys(params).length) return;
@@ -127,10 +140,170 @@
       tabContent.find(`.wprrt-param-input[data-param="${k}"]`).val(v);
     });
   }
-  const $$3 = window.jQuery;
+  const $$6 = window.jQuery;
+  function setResponseView(tabContent, view) {
+    const v = view === "ai" ? "ai" : "json";
+    tabContent.find(".wprrt-response-tab").removeClass("is-active").attr("aria-selected", "false");
+    tabContent.find(`.wprrt-response-tab[data-view="${v}"]`).addClass("is-active").attr("aria-selected", "true");
+    tabContent.find(".wprrt-response-view").removeClass("is-active").attr("hidden", true);
+    tabContent.find(`.wprrt-response-view[data-view="${v}"]`).addClass("is-active").removeAttr("hidden");
+  }
+  function focusResponsePanel(tabContent) {
+    const block = tabContent.find(".wprrt-response-block")[0];
+    if (block) {
+      block.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+  function bindResponseViewTabs() {
+    $$6(document).on("click", ".wprrt-response-tab", function() {
+      const tabContent = $$6(this).closest(".wprrt-tab-content");
+      setResponseView(tabContent, $$6(this).data("view"));
+    });
+  }
+  const $$5 = window.jQuery;
+  const strings$1 = () => {
+    var _a;
+    return ((_a = window.wprrt_vars) == null ? void 0 : _a.strings) || {};
+  };
+  function getAiUiState() {
+    const v = window.wprrt_vars;
+    if (v == null ? void 0 : v.ai_ui) return v.ai_ui;
+    if (!(v == null ? void 0 : v.ai_show_ui)) return "hidden";
+    return v.ai_ready ? "ready" : "disconnected";
+  }
+  function bindAiActions() {
+    if (getAiUiState() === "hidden") return;
+    $$5(document).on("click", ".wprrt-ai-explain", function() {
+      explainResponse($$5(this).closest(".wprrt-tab-content"));
+    });
+    $$5(document).on("click", ".wprrt-ai-suggest-body", function() {
+      suggestBody($$5(this).closest(".wprrt-tab-content"));
+    });
+    $$5(document).on("click", ".wprrt-body-suggestion-apply", function() {
+      const tabContent = $$5(this).closest(".wprrt-tab-content");
+      const raw = tabContent.find(".wprrt-body-suggestion-preview").text();
+      try {
+        const pretty = JSON.stringify(JSON.parse(raw), null, 2);
+        tabContent.find(".wprrt-body").val(pretty);
+      } catch (e) {
+        tabContent.find(".wprrt-body").val(raw);
+      }
+      tabContent.find(".wprrt-body").trigger("change");
+      tabContent.find(".wprrt-body-suggestion").attr("hidden", true);
+      tabContent.find(".wprrt-body").focus();
+    });
+    $$5(document).on("click", ".wprrt-body-suggestion-dismiss", function() {
+      $$5(this).closest(".wprrt-body-suggestion").attr("hidden", true);
+    });
+  }
+  function buildAiDisconnectedNoticeHtml() {
+    var _a;
+    if (getAiUiState() !== "disconnected") return "";
+    const s = strings$1();
+    const url = ((_a = window.wprrt_vars) == null ? void 0 : _a.connectors_url) || "";
+    return `<div class="wprrt-ai-connect-notice" role="status"><p>${escapeHtml(s.ai_connect_required || "Connect an AI provider under Settings → Connectors to use AI features.")}</p>` + (url ? `<p><a class="wprrt-ai-connect-link" href="${escapeAttr(url)}">${escapeHtml(s.ai_connect_link || "Open Connectors settings")}</a></p>` : "") + "</div>";
+  }
+  function buildResponseAiToolbarHtml() {
+    if (getAiUiState() === "hidden") return "";
+    const s = strings$1();
+    const disabled = getAiUiState() === "disconnected";
+    return `<div class="wprrt-response-tabs" role="tablist" aria-label="Response views"><button type="button" class="wprrt-response-tab is-active" data-view="json" role="tab" aria-selected="true">JSON</button><button type="button" class="wprrt-response-tab" data-view="ai" role="tab" aria-selected="false" ${disabled ? "disabled" : ""}>${s.ai_insight_tab || "AI insight"}</button></div><button type="button" class="wprrt-btn wprrt-btn--ghost wprrt-ai-explain" ${disabled ? "disabled" : ""} title="${escapeAttr(s.ai_explain || "Explain response")}"><span class="wprrt-btn-icon" aria-hidden="true">✦</span><span>${s.ai_explain_short || "Explain"}</span></button>`;
+  }
+  function buildBodySuggestButtonHtml() {
+    if (getAiUiState() === "hidden") return "";
+    const s = strings$1();
+    const disabled = getAiUiState() === "disconnected";
+    return `<button type="button" class="wprrt-btn wprrt-btn--soft wprrt-ai-suggest-body" ${disabled ? "disabled" : ""}><span class="wprrt-btn-icon" aria-hidden="true">✦</span><span>${s.ai_suggest_body || "Suggest body"}</span></button>`;
+  }
+  function explainResponse(tabContent) {
+    if (getAiUiState() === "disconnected") {
+      tabContent.find(".wprrt-ai-connect-notice").show();
+      focusResponsePanel(tabContent);
+      return;
+    }
+    const route = resolveRoute(tabContent);
+    const method = tabContent.find(".wprrt-method").val();
+    const status = tabContent.data("last-status") || 0;
+    const body = tabContent.find(".wprrt-response").text();
+    const panel = tabContent.find(".wprrt-ai-panel");
+    const btn = tabContent.find(".wprrt-ai-explain");
+    setResponseView(tabContent, "ai");
+    focusResponsePanel(tabContent);
+    panel.html(`<p class="wprrt-ai-loading">${strings$1().ai_thinking || "Asking AI…"}</p>`);
+    btn.prop("disabled", true);
+    $$5.post(window.wprrt_vars.ajax_url, {
+      action: "wprrt_ai_explain",
+      nonce: window.wprrt_vars.nonce,
+      route,
+      method,
+      status,
+      body
+    }, (res) => {
+      btn.prop("disabled", false);
+      if (res.success) {
+        panel.empty().append($$5('<div class="wprrt-ai-text"></div>').text(res.data.text));
+      } else {
+        panel.html(`<p class="wprrt-ai-error">${escapeHtml(res.data || "AI request failed")}</p>`);
+      }
+    }).fail(() => {
+      btn.prop("disabled", false);
+      panel.html('<p class="wprrt-ai-error">Could not reach AI service.</p>');
+    });
+  }
+  function suggestBody(tabContent) {
+    if (getAiUiState() === "disconnected") {
+      tabContent.find(".wprrt-ai-connect-notice").show();
+      return;
+    }
+    const route = resolveRoute(tabContent);
+    const method = tabContent.find(".wprrt-method").val();
+    const btn = tabContent.find(".wprrt-ai-suggest-body");
+    const card = tabContent.find(".wprrt-body-suggestion");
+    const orig = btn.html();
+    btn.prop("disabled", true).html(
+      `<span class="wprrt-btn-icon" aria-hidden="true">⋯</span><span>${strings$1().ai_thinking || "Asking AI…"}</span>`
+    );
+    card.attr("hidden", true);
+    $$5.post(window.wprrt_vars.ajax_url, {
+      action: "wprrt_ai_suggest_body",
+      nonce: window.wprrt_vars.nonce,
+      route,
+      method
+    }, (res) => {
+      var _a;
+      btn.prop("disabled", false).html(orig);
+      if (res.success && res.data.body) {
+        let pretty = res.data.body;
+        try {
+          pretty = JSON.stringify(JSON.parse(res.data.body), null, 2);
+        } catch (e) {
+        }
+        card.find(".wprrt-body-suggestion-preview").text(pretty);
+        card.removeAttr("hidden");
+        (_a = card[0]) == null ? void 0 : _a.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      } else {
+        showBodySuggestionError(card, res.data || "AI request failed");
+      }
+    }).fail(() => {
+      btn.prop("disabled", false).html(orig);
+      showBodySuggestionError(card, "Could not reach AI service.");
+    });
+  }
+  function showBodySuggestionError(card, msg) {
+    card.find(".wprrt-body-suggestion-preview").text("");
+    card.find(".wprrt-body-suggestion-error").text(msg);
+    card.removeAttr("hidden");
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function escapeAttr(str) {
+    return String(str).replace(/"/g, "&quot;");
+  }
+  const $$4 = window.jQuery;
   function populateRoleSelector(roleSelector, selectedRole) {
     roleSelector.empty();
-    $$3.post(window.wprrt_vars.ajax_url, {
+    $$4.post(window.wprrt_vars.ajax_url, {
       action: "wprrt_get_user_roles",
       nonce: window.wprrt_vars.nonce
     }, (res) => {
@@ -148,7 +321,7 @@
     pluginSelect.empty();
     const allOpt = document.createElement("option");
     allOpt.value = "all";
-    allOpt.textContent = "All Plugins";
+    allOpt.textContent = "All namespaces";
     pluginSelect.append(allOpt);
     Object.keys(WPRRT.pluginRoutes).sort().forEach((plugin) => {
       const opt = document.createElement("option");
@@ -167,30 +340,32 @@
     });
   }
   function switchTab(tabId) {
-    $$3(".wprrt-tab-content").hide();
-    $$3(".wprrt-tab-header").removeClass("active");
-    $$3(`#${tabId}`).show();
-    $$3(`.wprrt-tab-header[data-tab-id="${tabId}"]`).addClass("active");
+    $$4(".wprrt-tab-content").hide();
+    $$4(".wprrt-tab-header").removeClass("active");
+    $$4(`#${tabId}`).show();
+    $$4(`.wprrt-tab-header[data-tab-id="${tabId}"]`).addClass("active");
     WPRRT.activeTabId = tabId;
   }
   function createNewTab(tabData) {
+    var _a;
+    const s = ((_a = window.wprrt_vars) == null ? void 0 : _a.strings) || {};
     const tabId = tabData ? tabData.id : `tab-${++WPRRT.tabCounter}`;
     const tabTitle = tabData ? tabData.title : `Request ${WPRRT.tabCounter}`;
-    const tabHeader = $$3(
-      `<div class="wprrt-tab-header" data-tab-id="${tabId}"><span class="wprrt-tab-title"></span><button class="wprrt-close-tab">&times;</button></div>`
+    const tabHeader = $$4(
+      `<div class="wprrt-tab-header" data-tab-id="${tabId}"><span class="wprrt-tab-title"></span><button type="button" class="wprrt-close-tab" aria-label="Close tab">&times;</button></div>`
     );
     tabHeader.find(".wprrt-tab-title").text(tabTitle);
-    const tabContent = $$3(
-      `<div class="wprrt-tab-content" id="${tabId}"><div class="wprrt-container"><div class="wprrt-form"><label>Role:<select class="wprrt-role-selector"></select></label><label>Plugin:<select class="wprrt-plugin"></select></label><label>Route:<div class="wprrt-route-container"><input type="text" class="wprrt-route" placeholder="Enter or select a route"><div class="wprrt-route-dropdown"></div></div></label><div class="wprrt-params-container"></div><label>Method:<select class="wprrt-method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option></select></label><label>Headers (JSON):<div class="wprrt-field-container"><textarea class="wprrt-headers" rows="4" placeholder='{
-  "Authorization": "Bearer your-token"
-}'></textarea><div class="wprrt-field-help"><small>Authentication headers, content type, etc.</small></div></div></label><label>Body (JSON):<div class="wprrt-field-container"><textarea class="wprrt-body" rows="6" placeholder='{
+    const tabContent = $$4(
+      `<div class="wprrt-tab-content" id="${tabId}"><div class="wprrt-workspace"><div class="wprrt-form"><section class="wprrt-section"><h3 class="wprrt-section-title">Request</h3><div class="wprrt-field-row wprrt-field-row--2"><label class="wprrt-field">Role<select class="wprrt-role-selector"></select></label><label class="wprrt-field">Namespace<select class="wprrt-plugin"></select></label></div><label class="wprrt-field">Route<div class="wprrt-route-container"><input type="text" class="wprrt-route" placeholder="Enter or select a route" autocomplete="off"><div class="wprrt-route-dropdown"></div></div></label><div class="wprrt-params-container"></div><label class="wprrt-field wprrt-field--inline">Method<select class="wprrt-method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>OPTIONS</option><option>HEAD</option></select></label></section><section class="wprrt-section"><h3 class="wprrt-section-title">Payload</h3><div class="wprrt-label-row"><label class="wprrt-field wprrt-field--grow">Body (JSON)<textarea class="wprrt-body" rows="7" placeholder='{
   "title": "Your Title",
   "status": "publish"
-}'></textarea><div class="wprrt-field-help"><small>For POST / PUT / PATCH requests.</small></div></div></label><div class="wprrt-form-actions"><button class="wprrt-test">Send</button><button class="wprrt-curl-btn" type="button">Copy as cURL</button><button class="wprrt-save-btn" type="button">Save</button></div><div class="wprrt-save-form"><input type="text" class="wprrt-save-name" placeholder="Request name…" maxlength="80"><div class="wprrt-save-actions"><button class="wprrt-save-confirm" type="button">Save</button><button class="wprrt-save-cancel" type="button">Cancel</button></div></div></div><div class="wprrt-response-block"><h3>Response</h3><div class="wprrt-response-meta"><span class="wprrt-status-badge"></span><span class="wprrt-response-time"></span></div><details class="wprrt-response-headers"><summary>Response Headers (<span class="wprrt-header-count">0</span>)</summary><pre class="wprrt-headers-body"></pre></details><pre class="wprrt-response">Waiting for request...</pre></div></div></div>`
+}'></textarea></label><div class="wprrt-label-row-actions">` + buildBodySuggestButtonHtml() + `</div></div><span class="wprrt-field-hint">POST/PUT/PATCH body, or query parameters for GET.</span><div class="wprrt-body-suggestion" hidden><div class="wprrt-body-suggestion-head"><span class="wprrt-body-suggestion-title">${s.ai_suggestion_title || "Suggested request body"}</span><div class="wprrt-body-suggestion-actions"><button type="button" class="wprrt-btn wprrt-btn--primary wprrt-body-suggestion-apply">${s.ai_apply_body || "Apply to body"}</button><button type="button" class="wprrt-btn wprrt-btn--ghost wprrt-body-suggestion-dismiss">${s.ai_dismiss || "Dismiss"}</button></div></div><pre class="wprrt-body-suggestion-preview"></pre><p class="wprrt-body-suggestion-error"></p></div></section><section class="wprrt-section wprrt-section--headers"><h3 class="wprrt-section-title">Headers</h3><label class="wprrt-field">Headers (JSON)<textarea class="wprrt-headers" rows="4" placeholder='{
+  "Authorization": "Bearer your-token"
+}'></textarea><span class="wprrt-field-hint">Use auth presets above this field when needed.</span></label></section><div class="wprrt-form-actions"><button type="button" class="wprrt-btn wprrt-btn--primary wprrt-test">Send request</button><button type="button" class="wprrt-btn wprrt-btn--secondary wprrt-curl-btn">Copy cURL</button><button type="button" class="wprrt-btn wprrt-btn--secondary wprrt-save-btn">Save</button></div>` + buildAiDisconnectedNoticeHtml() + `<div class="wprrt-save-form"><input type="text" class="wprrt-save-name" placeholder="Request name…" maxlength="80"><div class="wprrt-save-actions"><button type="button" class="wprrt-save-confirm">Save</button><button type="button" class="wprrt-save-cancel">Cancel</button></div></div></div><div class="wprrt-response-block"><div class="wprrt-response-toolbar"><div class="wprrt-response-toolbar-start"><span class="wprrt-response-toolbar-label">Response</span><div class="wprrt-response-meta"><span class="wprrt-status-badge wprrt-status-idle">—</span><span class="wprrt-response-time"></span></div></div><div class="wprrt-response-toolbar-end">` + buildResponseAiToolbarHtml() + `</div></div><div class="wprrt-response-views"><div class="wprrt-response-view is-active" data-view="json"><details class="wprrt-response-headers"><summary>Response headers (<span class="wprrt-header-count">0</span>)</summary><pre class="wprrt-headers-body"></pre></details><pre class="wprrt-response wprrt-response-json">Waiting for request…</pre></div><div class="wprrt-response-view" data-view="ai"><div class="wprrt-ai-panel"><p class="wprrt-ai-empty">Run a request, then use <strong>Explain</strong> to get an AI summary of the response here.</p></div></div></div></div></div></div>`
     );
-    $$3(".wprrt-tabs").append(tabHeader);
-    $$3(".wprrt-tab-content-wrapper .wprrt-empty").remove();
-    $$3(".wprrt-tab-content-wrapper").append(tabContent);
+    $$4(".wprrt-tabs").append(tabHeader);
+    $$4(".wprrt-tab-content-wrapper .wprrt-empty").remove();
+    $$4(".wprrt-tab-content-wrapper").append(tabContent);
     populateRoleSelector(tabContent.find(".wprrt-role-selector"), tabData ? tabData.role : void 0);
     populatePluginDropdown(tabContent.find(".wprrt-plugin"));
     initAuthDropdown(tabContent, tabData ? tabData.authType : void 0);
@@ -211,17 +386,17 @@
     switchTab(tabId);
   }
   function closeTab(tabId) {
-    $$3(`.wprrt-tab-header[data-tab-id="${tabId}"]`).remove();
-    $$3(`#${tabId}`).remove();
+    $$4(`.wprrt-tab-header[data-tab-id="${tabId}"]`).remove();
+    $$4(`#${tabId}`).remove();
     if (tabId === WPRRT.activeTabId) {
-      const remaining = $$3(".wprrt-tab-header").last();
+      const remaining = $$4(".wprrt-tab-header").last();
       if (remaining.length) switchTab(remaining.data("tab-id"));
     }
-    if ($$3(".wprrt-tab-header").length === 0) {
+    if ($$4(".wprrt-tab-header").length === 0) {
       WPRRT.tabCounter = 0;
       WPRRT.activeTabId = null;
       clearState();
-      $$3(".wprrt-tab-content-wrapper").html(
+      $$4(".wprrt-tab-content-wrapper").html(
         '<div class="wprrt-empty"><div class="wprrt-empty-inner"><div class="wprrt-empty-icon">🗂️</div><h3>No requests yet</h3><p>Create a new request to get started.</p><button class="wprrt-add-tab">+ New Request</button></div></div>'
       );
     }
@@ -1746,8 +1921,10 @@
     const headersEl = tabContent.find(".wprrt-response-headers");
     const headersPre = tabContent.find(".wprrt-headers-body");
     const responseEl = tabContent.find(".wprrt-response");
+    setResponseView(tabContent, "json");
     if (res.success) {
       const status = res.data.status;
+      tabContent.data("last-status", status);
       const label = STATUS_LABELS[status] || "";
       const cls = statusClass(status);
       badgeEl.attr("class", "wprrt-status-badge " + cls).text(label ? `${status} ${label}` : status);
@@ -1785,6 +1962,97 @@
     tabContent.find(".wprrt-response-headers").hide();
     tabContent.find(".wprrt-response").removeClass("language-json").text("Could not connect to the server. Please try again.");
   }
+  const $$3 = window.jQuery;
+  const strings = () => {
+    var _a;
+    return ((_a = window.wprrt_vars) == null ? void 0 : _a.strings) || {};
+  };
+  function initHistory() {
+    loadHistory();
+    bindHistoryEvents();
+  }
+  function loadHistory() {
+    $$3.post(window.wprrt_vars.ajax_url, {
+      action: "wprrt_get_history",
+      nonce: window.wprrt_vars.nonce
+    }, (res) => {
+      renderHistoryList(res.success ? res.data : []);
+    }).fail(() => renderHistoryList([]));
+  }
+  function renderHistoryList(items) {
+    const list = $$3("#wprrt-history-list");
+    list.empty();
+    if (!items.length) {
+      list.html(
+        `<div class="wprrt-saved-empty"><p>${strings().history_empty || "No requests logged yet."}</p></div>`
+      );
+      return;
+    }
+    items.forEach((item) => {
+      const el = $$3('<div class="wprrt-history-item wprrt-saved-item" tabindex="0"></div>');
+      el.attr("data-id", item.id);
+      const badge = $$3('<span class="wprrt-saved-method"></span>').text(item.method || "GET");
+      const meta = $$3('<span class="wprrt-history-meta"></span>').text(
+        `${item.status || "—"} · ${item.elapsed_ms || 0}ms`
+      );
+      const routeEl = $$3('<span class="wprrt-saved-route"></span>').text(item.route || "");
+      const timeEl = $$3('<span class="wprrt-history-time"></span>').text(formatTime(item.logged_at));
+      const info = $$3('<div class="wprrt-saved-info"></div>').append(badge, meta, routeEl, timeEl);
+      el.append(info);
+      list.append(el);
+    });
+  }
+  function formatTime(ts) {
+    if (!ts) return "";
+    const d = new Date(ts * 1e3);
+    return d.toLocaleString();
+  }
+  function bindHistoryEvents() {
+    $$3(document).on("click", ".wprrt-sidebar-tab", function() {
+      const tab = $$3(this).data("sidebar-tab");
+      $$3(".wprrt-sidebar-tab").removeClass("active");
+      $$3(this).addClass("active");
+      $$3(".wprrt-sidebar-panel").hide();
+      $$3(`.wprrt-sidebar-panel[data-panel="${tab}"]`).show();
+      if (tab === "history") {
+        loadHistory();
+      }
+    });
+    $$3(document).on("click", ".wprrt-history-item", function() {
+      const id = $$3(this).data("id");
+      restoreFromHistory(id);
+    });
+    $$3(document).on("click", ".wprrt-clear-history", function(e) {
+      e.preventDefault();
+      $$3.post(window.wprrt_vars.ajax_url, {
+        action: "wprrt_clear_history",
+        nonce: window.wprrt_vars.nonce
+      }, () => loadHistory());
+    });
+  }
+  function restoreFromHistory(id) {
+    $$3.post(window.wprrt_vars.ajax_url, {
+      action: "wprrt_get_history",
+      nonce: window.wprrt_vars.nonce
+    }, (res) => {
+      if (!res.success) return;
+      const item = res.data.find((i) => i.id === id);
+      if (!item) return;
+      createNewTab({
+        title: `${item.method} ${item.route}`.slice(0, 40),
+        route: item.route,
+        method: item.method,
+        headers: item.headers || "",
+        body: item.body || "",
+        role: item.role || ""
+      });
+      const tabContent = $$3(".wprrt-tab-content:visible");
+      if (item.route) {
+        renderParams(tabContent, item.route);
+      }
+      tabContent.find(".wprrt-role-selector").val(item.role || "");
+    });
+  }
   const $$2 = window.jQuery;
   function sendRequest(tabContent) {
     const route = resolveRoute(tabContent);
@@ -1796,6 +2064,8 @@
     const testButton = tabContent.find(".wprrt-test");
     tabContent.find(".wprrt-response-meta").hide();
     tabContent.find(".wprrt-response-headers").hide();
+    setResponseView(tabContent, "json");
+    tabContent.find(".wprrt-ai-panel").empty();
     responseEl.removeClass("language-json").html(
       '<div class="wprrt-loading"><div class="wprrt-loading-spinner"></div><p>Sending request...</p></div>'
     );
@@ -1814,6 +2084,7 @@
       testButton.prop("disabled", false);
       renderResponse(tabContent, res, elapsed);
       saveState();
+      loadHistory();
     }).fail(() => {
       const elapsed = (performance.now() - startTime).toFixed(2);
       testButton.prop("disabled", false);
@@ -1840,6 +2111,9 @@
     const method = tabContent.find(".wprrt-method").val();
     const headers = tabContent.find(".wprrt-headers").val();
     const body = tabContent.find(".wprrt-body").val();
+    const role = tabContent.find(".wprrt-role-selector").val();
+    const auth_type = tabContent.find(".wprrt-auth-type").val() || "none";
+    const params = getParamValues(tabContent);
     $$1.post(window.wprrt_vars.ajax_url, {
       action: "wprrt_save_request",
       nonce: window.wprrt_vars.nonce,
@@ -1847,9 +2121,19 @@
       route,
       method,
       headers,
-      body
+      body,
+      role,
+      auth_type,
+      params: JSON.stringify(params)
     }, (res) => {
-      if (res.success) loadSaved();
+      if (res.success) {
+        loadSaved();
+        return;
+      }
+      const msg = typeof res.data === "string" && res.data || "Could not save request.";
+      window.alert(msg);
+    }).fail(() => {
+      window.alert("Could not save request. Check your connection and try again.");
     });
   }
   const METHOD_COLOURS = {
@@ -1946,8 +2230,21 @@
       tabContent.find(".wprrt-method").val(item.method);
       tabContent.find(".wprrt-headers").val(item.headers || "");
       tabContent.find(".wprrt-body").val(item.body || "");
+      if (item.role !== void 0) {
+        tabContent.find(".wprrt-role-selector").val(item.role);
+      }
+      if (item.auth_type) {
+        tabContent.find(".wprrt-auth-type").val(item.auth_type);
+      }
+      if (item.route) {
+        renderParams(tabContent, item.route);
+        restoreParamValues(tabContent, item.params || {});
+      }
       saveState();
     });
+  }
+  function shellEscape(str) {
+    return String(str).replace(/'/g, "'\\''");
   }
   function copyCurl(tabContent) {
     const route = resolveRoute(tabContent);
@@ -1956,7 +2253,7 @@
     const body = tabContent.find(".wprrt-body").val().trim();
     const base = (window.wprrt_vars.rest_url || "").replace(/\/$/, "");
     const url = base + route;
-    const parts = [`curl -X ${method}`, `  "${url}"`];
+    const parts = [`curl -X ${method}`, `  '${shellEscape(url)}'`];
     let parsedHeaders = {};
     if (headers) {
       try {
@@ -1965,13 +2262,13 @@
       }
     }
     Object.entries(parsedHeaders).forEach(([k, v]) => {
-      parts.push(`  -H "${k}: ${v}"`);
+      parts.push(`  -H '${shellEscape(k)}: ${shellEscape(v)}'`);
     });
     if (["POST", "PUT", "PATCH"].includes(method) && body && body !== "{}") {
       if (!parsedHeaders["Content-Type"]) {
-        parts.push(`  -H "Content-Type: application/json"`);
+        parts.push(`  -H 'Content-Type: application/json'`);
       }
-      parts.push(`  -d '${body}'`);
+      parts.push(`  -d '${shellEscape(body)}'`);
     }
     const curlCmd = parts.join(" \\\n");
     const btn = tabContent.find(".wprrt-curl-btn");
@@ -2036,7 +2333,17 @@
     formatted = formatted.replace(/[()[\]^$|+*\\]/g, "").replace(/\?/g, "").replace(/\/{2,}/g, "/").replace(/!\//g, "/").replace(/!+/g, "").trim();
     return formatted;
   }
+  function getRouteNamespace(route) {
+    const path = String(route || "").replace(/^\//, "");
+    const versioned = path.match(/^([^/]+\/v\d+)/i);
+    if (versioned) {
+      return versioned[1];
+    }
+    const first = path.match(/^([^/]+)/);
+    return first ? first[1] : "other";
+  }
   function initializeApp(routes) {
+    var _a;
     WPRRT.formattedRoutes = {};
     WPRRT.pluginRoutes = {};
     WPRRT.routeMethods = {};
@@ -2048,15 +2355,18 @@
         methods: routeData.methods || ["GET"],
         primary_method: routeData.primary_method || "GET"
       };
-      const pluginMatch = route.match(/^\/([^/]+)/);
-      const pluginName = pluginMatch ? pluginMatch[1] : "other";
+      const pluginName = getRouteNamespace(route);
       if (!WPRRT.pluginRoutes[pluginName]) WPRRT.pluginRoutes[pluginName] = [];
       WPRRT.pluginRoutes[pluginName].push(formattedRoute);
     }
+    const s = ((_a = window.wprrt_vars) == null ? void 0 : _a.strings) || {};
     $("#wprrt-app").html(
-      '<div class="wprrt-layout"><aside class="wprrt-sidebar"><div class="wprrt-sidebar-header">Saved Requests</div><div id="wprrt-saved-list"></div></aside><div class="wprrt-main"><div class="wprrt-tabs-container"><div class="wprrt-tabs-header"><div class="wprrt-tabs"></div><button class="wprrt-add-tab">+ New Request</button></div><div class="wprrt-tab-content-wrapper"></div></div></div></div>'
+      `<div class="wprrt-layout"><aside class="wprrt-sidebar"><div class="wprrt-sidebar-tabs"><button type="button" class="wprrt-sidebar-tab active" data-sidebar-tab="saved">${s.saved_title || "Saved"}</button><button type="button" class="wprrt-sidebar-tab" data-sidebar-tab="history">${s.history_title || "History"}</button></div><div class="wprrt-sidebar-panel" data-panel="saved"><div id="wprrt-saved-list"></div></div><div class="wprrt-sidebar-panel" data-panel="history" style="display:none"><div class="wprrt-history-toolbar"><button type="button" class="wprrt-clear-history button-link">${s.clear_history || "Clear history"}</button></div><div id="wprrt-history-list"></div></div></aside><div class="wprrt-main"><div class="wprrt-tabs-container"><div class="wprrt-tabs-header"><div class="wprrt-tabs"></div><button class="wprrt-add-tab">+ New Request</button></div><div class="wprrt-tab-content-wrapper"></div></div></div></div>`
     );
     initSidebar();
+    initHistory();
+    bindAiActions();
+    bindResponseViewTabs();
     const savedState = loadState();
     if (savedState && savedState.tabs.length > 0) {
       savedState.tabs.forEach((tabData) => {

@@ -38,18 +38,18 @@ export function initAuthDropdown(tabContent, savedType) {
   const $ = window.jQuery;
 
   const wrapper = $(
-    '<label class="wprrt-auth-label">Auth preset:' +
+    '<label class="wprrt-field wprrt-auth-label">Auth preset' +
       '<select class="wprrt-auth-type">' +
         '<option value="none">No Auth</option>' +
         '<option value="bearer">Bearer Token</option>' +
         '<option value="apikey">API Key</option>' +
         '<option value="basic">Basic Auth</option>' +
       '</select>' +
+      '<span class="wprrt-field-hint">Applies common auth headers to the field below.</span>' +
     '</label>'
   );
 
-  // Insert immediately before the Headers label
-  tabContent.find('.wprrt-headers').closest('label').before(wrapper);
+  tabContent.find('.wprrt-section--headers').prepend(wrapper);
 
   if (savedType && savedType !== 'none') {
     wrapper.find('.wprrt-auth-type').val(savedType);

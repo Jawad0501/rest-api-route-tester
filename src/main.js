@@ -6,6 +6,9 @@ import { WPRRT, saveState, loadState } from './state.js';
 import { createNewTab, switchTab, closeTab, buildRouteDropdown } from './tabs.js';
 import { sendRequest } from './request.js';
 import { initSidebar } from './saved.js';
+import { initHistory } from './history.js';
+import { bindAiActions } from './ai.js';
+import { bindResponseViewTabs } from './ui-response.js';
 import { renderParams } from './params.js';
 import { copyCurl } from './export.js';
 
@@ -79,6 +82,19 @@ function formatRoute(route) {
   return formatted;
 }
 
+/**
+ * Group routes by REST namespace (e.g. wp/v2) instead of first path segment only.
+ */
+function getRouteNamespace(route) {
+  const path = String(route || '').replace(/^\//, '');
+  const versioned = path.match(/^([^/]+\/v\d+)/i);
+  if (versioned) {
+    return versioned[1];
+  }
+  const first = path.match(/^([^/]+)/);
+  return first ? first[1] : 'other';
+}
+
 // -----------------------------------------------------------------------
 // App initialisation
 // -----------------------------------------------------------------------
@@ -98,18 +114,30 @@ function initializeApp(routes) {
       primary_method: routeData.primary_method || 'GET',
     };
 
-    const pluginMatch = route.match(/^\/([^/]+)/);
-    const pluginName  = pluginMatch ? pluginMatch[1] : 'other';
+    const pluginName = getRouteNamespace(route);
 
     if (!WPRRT.pluginRoutes[pluginName]) WPRRT.pluginRoutes[pluginName] = [];
     WPRRT.pluginRoutes[pluginName].push(formattedRoute);
   }
 
+  const s = window.wprrt_vars?.strings || {};
+
   $('#wprrt-app').html(
     '<div class="wprrt-layout">' +
       '<aside class="wprrt-sidebar">' +
-        '<div class="wprrt-sidebar-header">Saved Requests</div>' +
-        '<div id="wprrt-saved-list"></div>' +
+        '<div class="wprrt-sidebar-tabs">' +
+          `<button type="button" class="wprrt-sidebar-tab active" data-sidebar-tab="saved">${s.saved_title || 'Saved'}</button>` +
+          `<button type="button" class="wprrt-sidebar-tab" data-sidebar-tab="history">${s.history_title || 'History'}</button>` +
+        '</div>' +
+        '<div class="wprrt-sidebar-panel" data-panel="saved">' +
+          '<div id="wprrt-saved-list"></div>' +
+        '</div>' +
+        '<div class="wprrt-sidebar-panel" data-panel="history" style="display:none">' +
+          '<div class="wprrt-history-toolbar">' +
+            `<button type="button" class="wprrt-clear-history button-link">${s.clear_history || 'Clear history'}</button>` +
+          '</div>' +
+          '<div id="wprrt-history-list"></div>' +
+        '</div>' +
       '</aside>' +
       '<div class="wprrt-main">' +
         '<div class="wprrt-tabs-container">' +
@@ -124,6 +152,9 @@ function initializeApp(routes) {
   );
 
   initSidebar();
+  initHistory();
+  bindAiActions();
+  bindResponseViewTabs();
 
   const savedState = loadState();
   if (savedState && savedState.tabs.length > 0) {

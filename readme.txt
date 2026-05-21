@@ -2,8 +2,8 @@
 Contributors: jawad0501
 Tags: rest-api, api, testing, developer-tools
 Requires at least: 5.0
-Tested up to: 6.9
-Stable tag: 1.4.1
+Tested up to: 7.0
+Stable tag: 1.5.0
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -19,6 +19,9 @@ REST API Route Tester is a powerful tool for WordPress developers and administra
 * Switch between different user roles to test permissions
 * Send custom headers and body data
 * View detailed responses including status codes and timing
+* Request history and saved requests with full state restore
+* WordPress 7.0 AI helpers: explain responses and suggest request bodies (when Connectors are configured)
+* Abilities API integration for agent workflows
 
 == Installation ==
 
@@ -48,6 +51,16 @@ Please open a topic in our WordPress.org support forum with:
 Support forum: https://wordpress.org/support/plugin/rest-api-route-tester/
 
 == Changelog ==
+
+= 1.5.0 =
+* Tested up to WordPress 7.0
+* Fixed: custom headers and GET query parameters are now applied to REST requests
+* Fixed: capability checks on all AJAX endpoints; safer JSON handling for headers/body
+* Fixed: saved requests persist role, auth preset, and URL parameters
+* Added: Request history tab (last 50 tests) with one-click restore
+* Added: Explain response and Suggest body using WP AI Client (WordPress 7.0+)
+* Added: Abilities `wprrt/list-rest-routes` and `wprrt/test-rest-route`
+* Improved: namespace-based route filter (e.g. wp/v2); admin UI polish for WP 7.0
 
 = 1.4.1 =
 * Fixed role-based testing: REST permission checks now evaluate as the selected role or guest, not the logged-in administrator
@@ -99,6 +112,9 @@ Support forum: https://wordpress.org/support/plugin/rest-api-route-tester/
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.5.0 =
+Major update: headers and GET params now work correctly, plus history, WP 7.0 AI helpers, and Abilities API. Recommended for all users.
 
 = 1.4.1 =
 Hotfix: correct role and guest simulation for REST permission checks. Recommended if you use role-based route testing.
